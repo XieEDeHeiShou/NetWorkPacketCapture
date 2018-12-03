@@ -3,6 +3,7 @@ package com.minhui.vpn.tunnel;
 import android.net.VpnService;
 import android.os.Handler;
 import android.os.Looper;
+import android.support.annotation.NonNull;
 
 import com.minhui.vpn.KeyHandler;
 import com.minhui.vpn.Packet;
@@ -37,23 +38,21 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class UDPTunnel implements KeyHandler {
 
-
     private static final String TAG = UDPTunnel.class.getSimpleName();
+    private static final int HEADER_SIZE = Packet.IP4_HEADER_SIZE + Packet.UDP_HEADER_SIZE;
     private final VpnService vpnService;
     private final Selector selector;
     private final UDPServer vpnServer;
     private final Queue<Packet> outputQueue;
+    private final ConcurrentLinkedQueue<Packet> toNetWorkPackets = new ConcurrentLinkedQueue<>();
+    private final NatSession session;
+    private final Handler handler;
     private TcpDataSaveHelper helper;
     private Packet referencePacket;
     private SelectionKey selectionKey;
-
     private DatagramChannel channel;
-    private final ConcurrentLinkedQueue<Packet> toNetWorkPackets = new ConcurrentLinkedQueue<>();
-    private static final int HEADER_SIZE = Packet.IP4_HEADER_SIZE + Packet.UDP_HEADER_SIZE;
     private Short portKey;
-    String ipAndPort;
-    private final NatSession session;
-    private final Handler handler;
+    private String ipAndPort;
 
     public UDPTunnel(VpnService vpnService, Selector selector, UDPServer vpnServer, Packet packet, Queue<Packet> outputQueue, short portKey) {
         this.vpnService = vpnService;
@@ -67,19 +66,17 @@ public class UDPTunnel implements KeyHandler {
         handler = new Handler(Looper.getMainLooper());
 
         if (VpnServiceHelper.isUDPDataNeedSave()) {
-            String helperDir = new StringBuilder()
-                    .append(VPNConstants.DATA_DIR)
-                    .append(TimeFormatUtil.formatYYMMDDHHMMSS(session.vpnStartTime))
-                    .append("/")
-                    .append(session.getUniqueName())
-                    .toString();
-            helper = new TcpDataSaveHelper(helperDir);
+            if (session != null) {
+                String helperDir = VPNConstants.DATA_DIR +
+                        TimeFormatUtil.formatYYMMDDHHMMSS(session.vpnStartTime) +
+                        "/" +
+                        session.getUniqueName();
+                helper = new TcpDataSaveHelper(helperDir);
+            }
         }
-
     }
 
-
-    private void processKey(SelectionKey key) {
+    private void processKey(@NonNull SelectionKey key) {
         if (key.isWritable()) {
             processSend();
         } else if (key.isReadable()) {
@@ -93,7 +90,7 @@ public class UDPTunnel implements KeyHandler {
         ByteBuffer receiveBuffer = SocketUtils.getByteBuffer();
         // Leave space for the header
         receiveBuffer.position(HEADER_SIZE);
-        int readBytes = 0;
+        int readBytes;
         try {
             readBytes = channel.read(receiveBuffer);
         } catch (Exception e) {
@@ -120,7 +117,6 @@ public class UDPTunnel implements KeyHandler {
             if (VpnServiceHelper.isUDPDataNeedSave() && helper != null) {
                 saveData(receiveBuffer.array(), readBytes, false);
             }
-
         }
     }
 
@@ -214,6 +210,7 @@ public class UDPTunnel implements KeyHandler {
                                     + TimeFormatUtil.formatYYMMDDHHMMSS(session.vpnStartTime);
                             File parentFile = new File(configFileDir);
                             if (!parentFile.exists()) {
+                                //noinspection ResultOfMethodCallIgnored
                                 parentFile.mkdirs();
                             }
                             //说已经存了
@@ -234,11 +231,11 @@ public class UDPTunnel implements KeyHandler {
     }
 
 
-    Packet getToNetWorkPackets() {
+    private Packet getToNetWorkPackets() {
         return toNetWorkPackets.poll();
     }
 
-    void addToNetWorkPacket(Packet packet) {
+    private void addToNetWorkPacket(Packet packet) {
         toNetWorkPackets.offer(packet);
         updateInterests();
     }
@@ -247,7 +244,7 @@ public class UDPTunnel implements KeyHandler {
         return channel;
     }
 
-    void updateInterests() {
+    private void updateInterests() {
         int ops;
         if (toNetWorkPackets.isEmpty()) {
             ops = SelectionKey.OP_READ;
@@ -259,13 +256,8 @@ public class UDPTunnel implements KeyHandler {
         VPNLog.d(TAG, "updateInterests ops:" + ops + ",ip" + ipAndPort);
     }
 
-    Packet getReferencePacket() {
-        return referencePacket;
-    }
-
-
     @Override
-    public void onKeyReady(SelectionKey key) {
+    public void onKeyReady(@NonNull SelectionKey key) {
         processKey(key);
     }
 

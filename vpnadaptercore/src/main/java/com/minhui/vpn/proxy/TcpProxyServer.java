@@ -157,7 +157,7 @@ public class TcpProxyServer implements Runnable {
                 remoteTunnel.setBrotherTunnel(localTunnel);
                 localTunnel.setBrotherTunnel(remoteTunnel);
                 //开始连接
-                remoteTunnel.connect(destAddress);
+                remoteTunnel.connect();
             }
         } catch (Exception ex) {
             if (AppDebug.IS_DEBUG) {

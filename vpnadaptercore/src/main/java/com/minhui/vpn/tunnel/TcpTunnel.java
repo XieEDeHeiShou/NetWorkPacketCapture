@@ -1,8 +1,9 @@
 package com.minhui.vpn.tunnel;
 
 
+import android.support.annotation.NonNull;
+
 import com.minhui.vpn.KeyHandler;
-import com.minhui.vpn.nat.NatSession;
 import com.minhui.vpn.nat.NatSessionManager;
 import com.minhui.vpn.service.FirewallVpnService;
 import com.minhui.vpn.utils.AppDebug;
@@ -23,8 +24,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public abstract class TcpTunnel implements KeyHandler {
 
-    public static long sessionCount;
-    protected InetSocketAddress mDestAddress;
     /**
      * 自己的Channel
      */
@@ -46,31 +45,29 @@ public abstract class TcpTunnel implements KeyHandler {
     private TcpTunnel mBrotherTunnel;
     private boolean mDisposed;
     private InetSocketAddress mServerEP;
-    short portKey;
-    ConcurrentLinkedQueue<ByteBuffer> needWriteData = new ConcurrentLinkedQueue<>();
+    private short portKey;
+    private ConcurrentLinkedQueue<ByteBuffer> needWriteData = new ConcurrentLinkedQueue<>();
 
-    public TcpTunnel(SocketChannel innerChannel, Selector selector) {
+    TcpTunnel(@NonNull SocketChannel innerChannel, @NonNull Selector selector) {
         mInnerChannel = innerChannel;
         mSelector = selector;
-        sessionCount++;
     }
 
-    public TcpTunnel(InetSocketAddress serverAddress, Selector selector, short portKey) throws IOException {
+    TcpTunnel(@NonNull InetSocketAddress serverAddress, @NonNull Selector selector, short portKey) throws IOException {
         SocketChannel innerChannel = SocketChannel.open();
         innerChannel.configureBlocking(false);
         this.mInnerChannel = innerChannel;
         this.mSelector = selector;
         this.mServerEP = serverAddress;
         this.portKey = portKey;
-        sessionCount++;
     }
 
     @Override
-    public void onKeyReady(SelectionKey key) {
+    public void onKeyReady(@NonNull SelectionKey key) {
         if (key.isReadable()) {
-            onReadable(key);
+            onReadable();
         } else if (key.isWritable()) {
-            onWritable(key);
+            onWritable();
         } else if (key.isConnectable()) {
             onConnectable();
         }
@@ -92,15 +89,14 @@ public abstract class TcpTunnel implements KeyHandler {
 
     protected abstract void onDispose();
 
-    public void setBrotherTunnel(TcpTunnel brotherTunnel) {
+    public void setBrotherTunnel(@NonNull TcpTunnel brotherTunnel) {
         this.mBrotherTunnel = brotherTunnel;
     }
 
 
-    public void connect(InetSocketAddress destAddress) throws Exception {
+    public void connect() throws Exception {
         //保护socket不走VPN
         if (VpnServiceHelper.protect(mInnerChannel.socket())) {
-            mDestAddress = destAddress;
             //注册连接事件
             mInnerChannel.register(mSelector, SelectionKey.OP_CONNECT, this);
             mInnerChannel.connect(mServerEP);
@@ -110,7 +106,7 @@ public abstract class TcpTunnel implements KeyHandler {
         }
     }
 
-    public void onConnectable() {
+    private void onConnectable() {
         try {
             if (mInnerChannel.finishConnect()) {
                 //通知子类TCP已连接，子类可以根据协议实现握手等
@@ -129,7 +125,7 @@ public abstract class TcpTunnel implements KeyHandler {
         }
     }
 
-    protected void beginReceived() throws Exception {
+    private void beginReceived() throws Exception {
         if (mInnerChannel.isBlocking()) {
             mInnerChannel.configureBlocking(false);
         }
@@ -138,7 +134,7 @@ public abstract class TcpTunnel implements KeyHandler {
         mInnerChannel.register(mSelector, SelectionKey.OP_READ, this);
     }
 
-    public void onReadable(SelectionKey key) {
+    private void onReadable() {
         try {
             ByteBuffer buffer = ByteBuffer.allocate(FirewallVpnService.MUTE_SIZE);
             buffer.clear();
@@ -148,7 +144,7 @@ public abstract class TcpTunnel implements KeyHandler {
                 //先让子类处理，例如解密数据
                 afterReceived(buffer);
 
-                sendToBrother(key, buffer);
+                sendToBrother(buffer);
 
             } else if (bytesRead < 0) {
 
@@ -164,26 +160,22 @@ public abstract class TcpTunnel implements KeyHandler {
     }
 
 
-
-    protected void sendToBrother(SelectionKey key, ByteBuffer buffer) throws Exception {
+    private void sendToBrother(@NonNull ByteBuffer buffer) {
         //将读到的数据，转发给兄弟
         if (isTunnelEstablished() && buffer.hasRemaining()) {
             //发送之前，先让子类处理，例如做加密等。
             //    mBrotherTunnel.beforeSend(buffer);
             mBrotherTunnel.getWriteDataFromBrother(buffer);
-
         }
     }
 
-    private void getWriteDataFromBrother(ByteBuffer buffer) {
+    private void getWriteDataFromBrother(@NonNull ByteBuffer buffer) {
         //如果没有数据尝试直接写
         if (buffer.hasRemaining() && needWriteData.size() == 0) {
-
             int writeSize = 0;
             try {
                 writeSize = write(buffer);
             } catch (Exception e) {
-                writeSize = 0;
                 e.printStackTrace();
             }
             if (writeSize > 0) {
@@ -199,7 +191,7 @@ public abstract class TcpTunnel implements KeyHandler {
         }
     }
 
-    protected int write(ByteBuffer buffer) throws Exception {
+    private int write(@NonNull ByteBuffer buffer) throws Exception {
         int byteSendSum = 0;
         beforeSend(buffer);
         while (buffer.hasRemaining()) {
@@ -213,8 +205,7 @@ public abstract class TcpTunnel implements KeyHandler {
 
     }
 
-
-    public void onWritable(SelectionKey key) {
+    private void onWritable() {
         try {
             //发送之前，先让子类处理，例如做加密等
             ByteBuffer mSendRemainBuffer = needWriteData.poll();
@@ -243,7 +234,7 @@ public abstract class TcpTunnel implements KeyHandler {
         }
     }
 
-    protected void onTunnelEstablished() throws Exception {
+    void onTunnelEstablished() throws Exception {
         this.beginReceived(); //开始接收数据
         mBrotherTunnel.beginReceived(); //兄弟也开始接收数据吧
     }
@@ -252,7 +243,7 @@ public abstract class TcpTunnel implements KeyHandler {
         disposeInternal(true);
     }
 
-    void disposeInternal(boolean disposeBrother) {
+    private void disposeInternal(boolean disposeBrother) {
         if (!mDisposed) {
             try {
                 mInnerChannel.close();
@@ -272,7 +263,6 @@ public abstract class TcpTunnel implements KeyHandler {
             mSelector = null;
             mBrotherTunnel = null;
             mDisposed = true;
-            sessionCount--;
 
             onDispose();
             NatSessionManager.removeSession(portKey);

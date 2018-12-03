@@ -1,13 +1,15 @@
 package com.minhui.vpn;
 
+import android.support.annotation.NonNull;
+
 import java.nio.channels.SelectionKey;
 
 /**
  * @author minhui.zhu
- *         Created by minhui.zhu on 2018/5/11.
- *         Copyright © 2017年 Oceanwing. All rights reserved.
+ * Created by minhui.zhu on 2018/5/11.
+ * Copyright © 2017年 Oceanwing. All rights reserved.
  */
 
 public interface KeyHandler {
-    void onKeyReady(SelectionKey key);
+    void onKeyReady(@NonNull SelectionKey key);
 }
