@@ -4,7 +4,8 @@ import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
-import android.text.TextUtils;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.util.LruCache;
 
@@ -17,45 +18,25 @@ import java.util.Comparator;
 
 /**
  * @author minhui.zhu
- *         Created by minhui.zhu on 2018/4/30.
- *         Copyright © 2017年 Oceanwing. All rights reserved.
+ * Created by minhui.zhu on 2018/4/30.
+ * Copyright © 2017年 Oceanwing. All rights reserved.
  */
 
 public class AppInfo implements Serializable {
+    private static final LruCache<String, IconInfo> iconCache = new LruCache<>(50);
     private static Drawable defaultIcon = null;
-    private static final LruCache<String, IconInfo> iconCache = new LruCache(50);
-    public final String allAppName;
     public final String leaderAppName;
     public final PackageNames pkgs;
 
-    static class Entry {
-        final String appName;
-        final String pkgName;
-
-        public Entry(String appName, String pkgName) {
-            this.appName = appName;
-            this.pkgName = pkgName;
-        }
-    }
-
-    static class IconInfo {
-        long date;
-        Drawable icon;
-
-        IconInfo() {
-        }
-    }
-
-
-    private AppInfo(String leaderAppName, String allAppName, String[] pkgs) {
+    private AppInfo(@NonNull String leaderAppName, @NonNull String[] pkgs) {
         this.leaderAppName = leaderAppName;
-        this.allAppName = allAppName;
         this.pkgs = PackageNames.newInstance(pkgs);
     }
 
-    public static AppInfo createFromUid(Context ctx, int uid) {
+    @Nullable
+    static AppInfo createFromUid(@NonNull Context ctx, int uid) {
         PackageManager pm = ctx.getPackageManager();
-        ArrayList<Entry> list = new ArrayList();
+        ArrayList<Entry> list = new ArrayList<>();
         if (uid > 0) {
             try {
                 String[] pkgNames = pm.getPackagesForUid(uid);
@@ -100,18 +81,15 @@ public class AppInfo implements Serializable {
         String[] pkgs = new String[list.size()];
         String[] apps = new String[list.size()];
         for (int i = 0; i < list.size(); i++) {
-            pkgs[i] = ((Entry) list.get(i)).pkgName;
-            apps[i] = ((Entry) list.get(i)).appName;
+            pkgs[i] = list.get(i).pkgName;
+            apps[i] = list.get(i).appName;
         }
-        return new AppInfo(apps[0], TextUtils.join(",", apps), pkgs);
+        return new AppInfo(apps[0], pkgs);
     }
 
-    public static Drawable getIcon(Context ctx, String pkgName) {
-        return getIcon(ctx, pkgName, false);
-    }
-
-    public static synchronized Drawable getIcon(Context ctx, String pkgName, boolean onlyPeek) {
-        Drawable drawable = null;
+    @NonNull
+    public static Drawable getIcon(@NonNull Context ctx, @NonNull String pkgName) {
+        Drawable drawable;
         synchronized (AppInfo.class) {
             IconInfo iconInfo;
             if (defaultIcon == null) {
@@ -121,26 +99,34 @@ public class AppInfo implements Serializable {
             PackageInfo appPackageInfo = null;
             try {
                 appPackageInfo = pm.getPackageInfo(pkgName, 0);
-                long lastUpdate = appPackageInfo.lastUpdateTime;
-                iconInfo = (IconInfo) iconCache.get(pkgName);
-                if (iconInfo != null && iconInfo.date == lastUpdate && iconInfo.icon != null) {
-                    drawable = iconInfo.icon;
-                }
-            } catch (PackageManager.NameNotFoundException e) {
+            } catch (PackageManager.NameNotFoundException ignore) {
             }
             if (appPackageInfo != null) {
-                if (!onlyPeek) {
-                    drawable = appPackageInfo.applicationInfo.loadIcon(pm);
-                    iconInfo = new IconInfo();
-                    iconInfo.date = appPackageInfo.lastUpdateTime;
-                    iconInfo.icon = drawable;
-                    iconCache.put(pkgName, iconInfo);
-                }
+                drawable = appPackageInfo.applicationInfo.loadIcon(pm);
+                iconInfo = new IconInfo();
+                iconInfo.date = appPackageInfo.lastUpdateTime;
+                iconInfo.icon = drawable;
+                iconCache.put(pkgName, iconInfo);
             } else {
                 iconCache.remove(pkgName);
                 drawable = defaultIcon;
             }
         }
         return drawable;
+    }
+
+    static class Entry {
+        final String appName;
+        final String pkgName;
+
+        Entry(@NonNull String appName, @NonNull String pkgName) {
+            this.appName = appName;
+            this.pkgName = pkgName;
+        }
+    }
+
+    static class IconInfo {
+        long date;
+        Drawable icon;
     }
 }
