@@ -1,6 +1,9 @@
 package com.minhui.vpn.proxy;
 
 
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
 import com.minhui.vpn.KeyHandler;
 import com.minhui.vpn.VPNLog;
 import com.minhui.vpn.nat.NatSession;
@@ -20,16 +23,15 @@ import java.util.Iterator;
 import java.util.Set;
 
 /**
- * Created by zengzheying on 15/12/30.
+ * @author zengzheying on 15/12/30.
  */
 public class TcpProxyServer implements Runnable {
     private static final String TAG = "TcpProxyServer";
     public boolean Stopped;
     public short port;
 
-    Selector mSelector;
-    ServerSocketChannel mServerSocketChannel;
-    Thread mServerThread;
+    private Selector mSelector;
+    private ServerSocketChannel mServerSocketChannel;
 
     public TcpProxyServer(int port) throws IOException {
         mSelector = Selector.open();
@@ -48,8 +50,7 @@ public class TcpProxyServer implements Runnable {
      * 启动TcpProxyServer线程
      */
     public void start() {
-        mServerThread = new Thread(this, "TcpProxyServerThread");
-        mServerThread.start();
+        new Thread(this, "TcpProxyServerThread").start();
     }
 
     public void stop() {
@@ -59,7 +60,6 @@ public class TcpProxyServer implements Runnable {
                 mSelector.close();
                 mSelector = null;
             } catch (Exception ex) {
-
                 DebugLog.e("TcpProxyServer mSelector.close() catch an exception: %s", ex);
             }
         }
@@ -72,17 +72,15 @@ public class TcpProxyServer implements Runnable {
                 if (AppDebug.IS_DEBUG) {
                     ex.printStackTrace(System.err);
                 }
-
                 DebugLog.e("TcpProxyServer mServerSocketChannel.close() catch an exception: %s", ex);
             }
         }
     }
 
-
     @Override
     public void run() {
         try {
-            while (true) {
+            while (!Thread.interrupted()) {
                 int select = mSelector.select();
                 if (select == 0) {
                     Thread.sleep(5);
@@ -100,26 +98,22 @@ public class TcpProxyServer implements Runnable {
                         try {
                             if (key.isAcceptable()) {
                                 VPNLog.d(TAG, "isAcceptable");
-                                onAccepted(key);
+                                onAccepted();
                             } else {
                                 Object attachment = key.attachment();
                                 if (attachment instanceof KeyHandler) {
                                     ((KeyHandler) attachment).onKeyReady(key);
                                 }
                             }
-
                         } catch (Exception ex) {
                             if (AppDebug.IS_DEBUG) {
                                 ex.printStackTrace(System.err);
                             }
-
                             DebugLog.e("udp iterate SelectionKey catch an exception: %s", ex);
                         }
                     }
                     keyIterator.remove();
                 }
-
-
             }
         } catch (Exception e) {
             if (AppDebug.IS_DEBUG) {
@@ -133,7 +127,8 @@ public class TcpProxyServer implements Runnable {
         }
     }
 
-    InetSocketAddress getDestAddress(SocketChannel localChannel) {
+    @Nullable
+    private InetSocketAddress getDestAddress(@NonNull SocketChannel localChannel) {
         short portKey = (short) localChannel.socket().getPort();
         NatSession session = NatSessionManager.getSession(portKey);
         if (session != null) {
@@ -142,7 +137,7 @@ public class TcpProxyServer implements Runnable {
         return null;
     }
 
-    void onAccepted(SelectionKey key) {
+    private void onAccepted() {
         TcpTunnel localTunnel = null;
         try {
             SocketChannel localChannel = mServerSocketChannel.accept();
@@ -162,9 +157,7 @@ public class TcpProxyServer implements Runnable {
             if (AppDebug.IS_DEBUG) {
                 ex.printStackTrace(System.err);
             }
-
             DebugLog.e("TcpProxyServer onAccepted catch an exception: %s", ex);
-
             if (localTunnel != null) {
                 localTunnel.dispose();
             }
