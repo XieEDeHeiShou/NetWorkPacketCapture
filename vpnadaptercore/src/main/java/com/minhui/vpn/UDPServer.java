@@ -95,7 +95,7 @@ public class UDPServer implements Runnable {
     @Override
     public void run() {
         try {
-            while (true) {
+            while (!Thread.interrupted()) {
                 int select = selector.select();
                 if (select == 0) {
                     Thread.sleep(5);
