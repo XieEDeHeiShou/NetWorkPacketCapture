@@ -5,9 +5,8 @@ import android.support.annotation.Nullable;
 
 import com.minhui.vpn.utils.CommonMethods;
 
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -69,14 +68,8 @@ public class NatSessionManager {
     }
 
     @NonNull
-    public static List<NatSession> getAllSession() {
-        // sessions.values()?
-        ArrayList<NatSession> natSessions = new ArrayList<>();
-        Set<Map.Entry<Short, NatSession>> entries = sessions.entrySet();
-        for (Map.Entry<Short, NatSession> next : entries) {
-            natSessions.add(next.getValue());
-        }
-        return natSessions;
+    public static Collection<NatSession> getAllSession() {
+        return sessions.values();
     }
 
     /**

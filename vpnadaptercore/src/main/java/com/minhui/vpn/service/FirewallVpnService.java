@@ -337,7 +337,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
             udpServer.start();
             NatSessionManager.clearAllSession();
             if (PortHostService.getInstance() != null) {
-                PortHostService.startParse(getApplicationContext());
+                PortHostService.start(getApplicationContext());
             }
             DebugLog.i("DnsProxy started.\n");
 
@@ -388,7 +388,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
                     if (PortHostService.getInstance() != null) {
                         PortHostService.getInstance().refreshSessionInfo();
                     }
-                    PortHostService.stopParse(getApplicationContext());
+                    PortHostService.stop(getApplicationContext());
                 }
             });
             stopSelf();

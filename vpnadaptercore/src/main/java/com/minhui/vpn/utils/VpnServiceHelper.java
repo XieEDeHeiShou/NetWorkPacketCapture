@@ -1,5 +1,6 @@
 package com.minhui.vpn.utils;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -11,20 +12,20 @@ import com.minhui.vpn.processparse.PortHostService;
 import com.minhui.vpn.service.FirewallVpnService;
 
 import java.io.File;
-import java.net.DatagramSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
 /**
- * Created by zengzheying on 16/1/12.
+ * @author zengzheying on 16/1/12.
  */
 public class VpnServiceHelper {
     public static final int START_VPN_SERVICE_REQUEST_CODE = 2015;
-    static Context context;
+    @SuppressLint("StaticFieldLeak")
+    private static Context context;
     private static FirewallVpnService sVpnService;
-    private static SharedPreferences sp;
 
     public static void onVpnServiceCreated(FirewallVpnService vpnService) {
         sVpnService = vpnService;
@@ -43,19 +44,11 @@ public class VpnServiceHelper {
     }
 
     public static boolean isUDPDataNeedSave() {
-
-        sp = context.getSharedPreferences(VPNConstants.VPN_SP_NAME, Context.MODE_PRIVATE);
+        SharedPreferences sp = context.getSharedPreferences(VPNConstants.VPN_SP_NAME, Context.MODE_PRIVATE);
         return sp.getBoolean(VPNConstants.IS_UDP_NEED_SAVE, false);
     }
 
     public static boolean protect(Socket socket) {
-        if (sVpnService != null) {
-            return sVpnService.protect(socket);
-        }
-        return false;
-    }
-
-    public static boolean protect(DatagramSocket socket) {
         if (sVpnService != null) {
             return sVpnService.protect(socket);
         }
@@ -83,8 +76,7 @@ public class VpnServiceHelper {
                 }
             }
         } else if (sVpnService != null) {
-            boolean stopStatus = false;
-            sVpnService.setVpnRunningStatus(stopStatus);
+            sVpnService.setVpnRunningStatus(false);
         }
     }
 
@@ -107,10 +99,8 @@ public class VpnServiceHelper {
 
             PortHostService portHostService = PortHostService.getInstance();
             if (portHostService != null) {
-                List<NatSession> aliveConnInfo = portHostService.getAndRefreshSessionInfo();
-                if (aliveConnInfo != null) {
-                    baseNetSessions.addAll(aliveConnInfo);
-                }
+                Collection<NatSession> aliveConnInfo = portHostService.getAndRefreshSessionInfo();
+                baseNetSessions.addAll(aliveConnInfo);
             }
             Collections.sort(baseNetSessions, new NatSession.NatSessionComparator());
             return baseNetSessions;
