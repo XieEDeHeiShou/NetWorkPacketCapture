@@ -8,8 +8,9 @@ import com.minhui.vpn.KeyHandler;
 import com.minhui.vpn.VPNLog;
 import com.minhui.vpn.nat.NatSession;
 import com.minhui.vpn.nat.NatSessionManager;
+import com.minhui.vpn.tunnel.RawTcpTunnel;
+import com.minhui.vpn.tunnel.RemoteTcpTunnel;
 import com.minhui.vpn.tunnel.TcpTunnel;
-import com.minhui.vpn.tunnel.TunnelFactory;
 import com.minhui.vpn.utils.AppDebug;
 import com.minhui.vpn.utils.DebugLog;
 
@@ -141,11 +142,16 @@ public class TcpProxyServer implements Runnable {
         TcpTunnel localTunnel = null;
         try {
             SocketChannel localChannel = mServerSocketChannel.accept();
-            localTunnel = TunnelFactory.wrap(localChannel, mSelector);
+            localTunnel = new RawTcpTunnel(localChannel, mSelector);
+            NatSession session = NatSessionManager.getSession((short) localChannel.socket().getPort());
+            if (session != null) {
+                localTunnel.setIsHttpsRequest(session.isHttpsSession);
+            }
+
             short portKey = (short) localChannel.socket().getPort();
             InetSocketAddress destAddress = getDestAddress(localChannel);
             if (destAddress != null) {
-                TcpTunnel remoteTunnel = TunnelFactory.createTunnelByConfig(destAddress, mSelector, portKey);
+                TcpTunnel remoteTunnel = new RemoteTcpTunnel(destAddress, mSelector, portKey);
                 //关联兄弟
                 remoteTunnel.setIsHttpsRequest(localTunnel.isHttpsRequest());
                 remoteTunnel.setBrotherTunnel(localTunnel);
@@ -163,5 +169,4 @@ public class TcpProxyServer implements Runnable {
             }
         }
     }
-
 }
