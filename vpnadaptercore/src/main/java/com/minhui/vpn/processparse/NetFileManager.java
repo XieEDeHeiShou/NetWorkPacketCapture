@@ -1,8 +1,8 @@
 package com.minhui.vpn.processparse;
 
-import android.content.Context;
-import android.os.Handler;
-import android.os.SystemClock;
+import android.annotation.SuppressLint;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,29 +13,26 @@ import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class NetFileManager {
-    public final static int TYPE_TCP = 0;
-    public final static int TYPE_TCP6 = 1;
-    public final static int TYPE_UDP = 2;
-    public final static int TYPE_UDP6 = 3;
-    public final static int TYPE_RAW = 4;
-    public final static int TYPE_RAW6 = 5;
-    public final static int TYPE_MAX = 6;
-
-    public final static int MSG_NET_CALLBACK = 1;
-    private static final String TAG = "NetFileManager";
-
-    private Context context;
-    private Handler handler;
-    private final static int DATA_LOCAL=2;
+    private final static int TYPE_TCP = 0;
+    private final static int TYPE_TCP6 = 1;
+    private final static int TYPE_UDP = 2;
+    private final static int TYPE_UDP6 = 3;
+    private final static int TYPE_RAW = 4;
+    private final static int TYPE_RAW6 = 5;
+    private final static int TYPE_MAX = 6;
+    private final static int DATA_LOCAL = 2;
     private final static int DATA_REMOTE = 3;
     private final static int DATA_UID = 8;
-    Map<Integer, Integer> processHost = new ConcurrentHashMap<>();
+    private Map<Integer, Integer> processHost = new ConcurrentHashMap<>();
     private File[] file;
     private long[] lastTime;
     private StringBuilder sbBuilder = new StringBuilder();
 
-    public void init(Context context) {
-        this.context = context;
+    public static NetFileManager getInstance() {
+        return InnerClass.instance;
+    }
+
+    void init() {
         final String PATH_TCP = "/proc/net/tcp";
         final String PATH_TCP6 = "/proc/net/tcp6";
         final String PATH_UDP = "/proc/net/udp";
@@ -55,18 +52,11 @@ public class NetFileManager {
         Arrays.fill(lastTime, 0);
     }
 
-    static class InnerClass {
-        static NetFileManager instance=new NetFileManager();
-    }
-    public static NetFileManager getInstance(){
-        return InnerClass.instance;
-    }
+    public void execute(@Nullable String[] cmd, @Nullable String directory, int type) throws IOException {
+        NetInfo netInfo;
+        String sTmp;
 
-    public void execute(String[] cmmand, String directory, int type) throws IOException {
-        NetInfo netInfo = null;
-        String sTmp = null;
-
-        ProcessBuilder builder = new ProcessBuilder(cmmand);
+        ProcessBuilder builder = new ProcessBuilder(cmd);
 
         if (directory != null) {
             builder.directory(new File(directory));
@@ -87,8 +77,8 @@ public class NetFileManager {
         }
     }
 
-    private int strToInt(String value, int iHex, int iDefault) {
-        int iValue = iDefault;
+    private int strToInt(@Nullable String value, int iHex) {
+        int iValue = 0;
         if (value == null) {
             return iValue;
         }
@@ -102,14 +92,14 @@ public class NetFileManager {
         return iValue;
     }
 
-    private long strToLong(String value, int iHex, int iDefault) {
-        long iValue = iDefault;
+    private long strToLong(@Nullable String value) {
+        long iValue = 0;
         if (value == null) {
             return iValue;
         }
 
         try {
-            iValue = Long.parseLong(value, iHex);
+            iValue = Long.parseLong(value, 16);
         } catch (NumberFormatException e) {
             e.printStackTrace();
         }
@@ -117,9 +107,10 @@ public class NetFileManager {
         return iValue;
     }
 
-    private NetInfo parseDataNew(String sData) {
+    @Nullable
+    private NetInfo parseDataNew(@NonNull String sData) {
         String sSplitItem[] = sData.split("\\s+");
-        String sTmp = null;
+        String sTmp;
         if (sSplitItem.length < 9) {
             return null;
         }
@@ -131,21 +122,14 @@ public class NetFileManager {
         if (sSourceItem.length < 2) {
             return null;
         }
-        netInfo.setSourPort(strToInt(sSourceItem[1], 16, 0));
-
-
-
+        netInfo.setSourPort(strToInt(sSourceItem[1], 16));
 
         sTmp = sSplitItem[DATA_REMOTE];
         String sDesItem[] = sTmp.split(":");
         if (sDesItem.length < 2) {
             return null;
         }
-        netInfo.setPort(strToInt(sDesItem[1], 16, 0));
-
-
-
-
+        netInfo.setPort(strToInt(sDesItem[1], 16));
 
 
         sTmp = sDesItem[0];
@@ -155,16 +139,16 @@ public class NetFileManager {
         }
 
         sTmp = sTmp.substring(len - 8);
-        netInfo.setIp(strToLong(sTmp, 16, 0));
+        netInfo.setIp(strToLong(sTmp));
 
         sbBuilder.setLength(0);
-        sbBuilder.append(strToInt(sTmp.substring(6, 8), 16, 0))
+        sbBuilder.append(strToInt(sTmp.substring(6, 8), 16))
                 .append(".")
-                .append(strToInt(sTmp.substring(4, 6), 16, 0))
+                .append(strToInt(sTmp.substring(4, 6), 16))
                 .append(".")
-                .append(strToInt(sTmp.substring(2, 4), 16, 0))
+                .append(strToInt(sTmp.substring(2, 4), 16))
                 .append(".")
-                .append(strToInt(sTmp.substring(0, 2), 16, 0));
+                .append(strToInt(sTmp.substring(0, 2), 16));
 
         sTmp = sbBuilder.toString();
         netInfo.setAddress(sTmp);
@@ -174,19 +158,16 @@ public class NetFileManager {
         }
 
         sTmp = sSplitItem[DATA_UID];
-        netInfo.setUid(strToInt(sTmp, 10, 0));
+        netInfo.setUid(strToInt(sTmp, 10));
 
         return netInfo;
     }
 
-    private void saveToMap(NetInfo netInfo) {
+    private void saveToMap(@Nullable NetInfo netInfo) {
         if (netInfo == null) {
             return;
         }
-     //   VPNLog.d(TAG, "saveToMap  port " + netInfo.getSourPort() + " uid " + netInfo.getUid());
-
         processHost.put(netInfo.getSourPort(), netInfo.getUid());
-
     }
 
     public void read(int type) {
@@ -226,9 +207,7 @@ public class NetFileManager {
         }
     }
 
-
-    public void refresh() {
-        long start = SystemClock.currentThreadTimeMillis();
+    void refresh() {
         for (int i = 0; i < TYPE_MAX; i++) {
             long iTime = file[i].lastModified();
             if (iTime != lastTime[i]) {
@@ -238,9 +217,13 @@ public class NetFileManager {
         }
     }
 
-    public Integer getUid(int port) {
-        Integer uid = processHost.get(port);
-     //   VPNLog.i(TAG, "getUid : port is   " + port + "   uid is " + uid);
-        return uid;
+    @Nullable
+    Integer getUid(int port) {
+        return processHost.get(port);
+    }
+
+    static class InnerClass {
+        @SuppressLint("StaticFieldLeak")
+        static NetFileManager instance = new NetFileManager();
     }
 }
