@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.VpnService;
 import android.os.Build;
-import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 
 import com.minhui.vpn.Packet;
@@ -19,7 +18,6 @@ import com.minhui.vpn.processparse.PortHostService;
 import com.minhui.vpn.proxy.TcpProxyServer;
 import com.minhui.vpn.tcpip.IPHeader;
 import com.minhui.vpn.tcpip.TCPHeader;
-import com.minhui.vpn.tcpip.UDPHeader;
 import com.minhui.vpn.utils.AppDebug;
 import com.minhui.vpn.utils.CommonMethods;
 import com.minhui.vpn.utils.DebugLog;
@@ -43,19 +41,28 @@ import static com.minhui.vpn.VPNConstants.VPN_SP_NAME;
  * Created by zengzheying on 15/12/28.
  */
 public class FirewallVpnService extends VpnService implements Runnable {
+    @SuppressWarnings("unused")
     public static final String ACTION_START_VPN = "com.minhui.START_VPN";
+    @SuppressWarnings("unused")
     public static final String ACTION_CLOSE_VPN = "com.minhui.roav.CLOSE_VPN";
+    @SuppressWarnings("unused")
     public static final String BROADCAST_VPN_STATE = "com.minhui.localvpn.VPN_STATE";
+    @SuppressWarnings("unused")
     public static final String SELECT_PACKAGE_ID = "select_protect_package_id";
-    public static final int MUTE_SIZE = 2560;
+    public static final int MUTE_SIZE = 2560;// maximum transmission unit: 2 * 1024
+    @SuppressWarnings("unused")
     private static final String FACEBOOK_APP = "com.facebook.katana";
+    @SuppressWarnings("unused")
     private static final String YOUTUBE_APP = "com.google.android.youtube";
+    @SuppressWarnings("unused")
     private static final String GOOGLE_MAP_APP = "com.google.android.apps.maps";
+    @SuppressWarnings("unused")
     private static final String VPN_ADDRESS = "10.0.0.2"; // Only IPv4 support for now
     private static final String VPN_ROUTE = "0.0.0.0"; // Intercept everything
     private static final String GOOGLE_DNS_FIRST = "8.8.8.8";
     private static final String GOOGLE_DNS_SECOND = "8.8.4.4";
     private static final String AMERICA = "208.67.222.222";
+    @SuppressWarnings("unused")
     private static final String HK_DNS_SECOND = "205.252.144.228";
     private static final String CHINA_DNS_FIRST = "114.114.114.114";
     private static final String TAG = "FirewallVpnService";
@@ -63,8 +70,6 @@ public class FirewallVpnService extends VpnService implements Runnable {
     public static String lastVpnStartTimeFormat = null;
     private static int ID;
     private static int LOCAL_IP;
-    private final UDPHeader mUDPHeader;
-    private final ByteBuffer mDNSBuffer;
     private boolean IsRunning = false;
     private Thread mVPNThread;
     private ParcelFileDescriptor mVPNInterface;
@@ -74,26 +79,16 @@ public class FirewallVpnService extends VpnService implements Runnable {
     private byte[] mPacket;
     private IPHeader mIPHeader;
     private TCPHeader mTCPHeader;
-    private Handler mHandler;
     private ConcurrentLinkedQueue<Packet> udpQueue;
-    private FileInputStream in;
     private UDPServer udpServer;
-    private String selectPackage;
-    private int mReceivedBytes;
-    private int mSentBytes;
     private SharedPreferences sp;
 
     public FirewallVpnService() {
         ID++;
-        mHandler = new Handler();
         mPacket = new byte[MUTE_SIZE];
         mIPHeader = new IPHeader(mPacket, 0);
         //Offset = ip报文头部长度
         mTCPHeader = new TCPHeader(mPacket, 20);
-        mUDPHeader = new UDPHeader(mPacket, 20);
-        //Offset = ip报文头部长度 + udp报文头部长度 = 28
-        mDNSBuffer = ((ByteBuffer) ByteBuffer.wrap(mPacket).position(28)).slice();
-
 
         DebugLog.i("New VPNService(%d)\n", ID);
     }
@@ -107,7 +102,6 @@ public class FirewallVpnService extends VpnService implements Runnable {
         mVPNThread = new Thread(this, "VPNServiceThread");
         mVPNThread.start();
         setVpnRunningStatus(true);
-        //   notifyStatus(new VPNEvent(VPNEvent.Status.STARTING));
         super.onCreate();
     }
 
@@ -122,10 +116,8 @@ public class FirewallVpnService extends VpnService implements Runnable {
         super.onDestroy();
     }
 
-
     //建立VPN，同时监听出口流量
     private void runVPN() throws Exception {
-
         this.mVPNInterface = establishVPN();
         startStream();
     }
@@ -133,7 +125,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
     private void startStream() throws Exception {
         int size = 0;
         mVPNOutputStream = new FileOutputStream(mVPNInterface.getFileDescriptor());
-        in = new FileInputStream(mVPNInterface.getFileDescriptor());
+        FileInputStream in = new FileInputStream(mVPNInterface.getFileDescriptor());
         while (size != -1 && IsRunning) {
             boolean hasWrite = false;
             size = in.read(mPacket);
@@ -162,28 +154,22 @@ public class FirewallVpnService extends VpnService implements Runnable {
 
     boolean onIPPacketReceived(IPHeader ipHeader, int size) throws IOException {
         boolean hasWrite = false;
-
         switch (ipHeader.getProtocol()) {
             case IPHeader.TCP:
                 hasWrite = onTcpPacketReceived(ipHeader, size);
-
                 break;
             case IPHeader.UDP:
                 onUdpPacketReceived(ipHeader, size);
-
-
                 break;
             default:
                 break;
         }
         return hasWrite;
-
     }
 
     private void onUdpPacketReceived(IPHeader ipHeader, int size) throws UnknownHostException {
         TCPHeader tcpHeader = mTCPHeader;
         short portKey = tcpHeader.getSourcePort();
-
 
         NatSession session = NatSessionManager.getSession(portKey);
         if (session == null || session.remoteIP != ipHeader.getDestinationIP() || session.remotePort
@@ -197,7 +183,6 @@ public class FirewallVpnService extends VpnService implements Runnable {
                     if (PortHostService.getInstance() != null) {
                         PortHostService.getInstance().refreshSessionInfo();
                     }
-
                 }
             });
         }
@@ -213,7 +198,6 @@ public class FirewallVpnService extends VpnService implements Runnable {
     }
 
     private boolean onTcpPacketReceived(IPHeader ipHeader, int size) throws IOException {
-        boolean hasWrite = false;
         TCPHeader tcpHeader = mTCPHeader;
         //矫正TCPHeader里的偏移量，使它指向真正的TCP数据地址
         tcpHeader.mOffset = ipHeader.getHeaderLength();
@@ -227,7 +211,6 @@ public class FirewallVpnService extends VpnService implements Runnable {
 
                 CommonMethods.ComputeTCPChecksum(ipHeader, tcpHeader);
                 mVPNOutputStream.write(ipHeader.mData, ipHeader.mOffset, size);
-                mReceivedBytes += size;
             } else {
                 DebugLog.i("NoSession: %s %s\n", ipHeader.toString(), tcpHeader.toString());
             }
@@ -249,7 +232,6 @@ public class FirewallVpnService extends VpnService implements Runnable {
                         if (instance != null) {
                             instance.refreshSessionInfo();
                         }
-
                     }
                 });
             }
@@ -278,8 +260,6 @@ public class FirewallVpnService extends VpnService implements Runnable {
                 session.remoteHost = HttpRequestHeaderParser.getRemoteHost(tcpHeader.mData, dataOffset,
                         tcpDataSize);
                 session.requestUrl = "http://" + session.remoteHost + "/" + session.pathUrl;
-
-
             }
 
             //转发给本地TCP服务器
@@ -291,10 +271,8 @@ public class FirewallVpnService extends VpnService implements Runnable {
             mVPNOutputStream.write(ipHeader.mData, ipHeader.mOffset, size);
             //注意顺序
             session.bytesSent += tcpDataSize;
-            mSentBytes += size;
         }
-        hasWrite = true;
-        return hasWrite;
+        return true;
     }
 
     private void waitUntilPrepared() {
@@ -312,8 +290,8 @@ public class FirewallVpnService extends VpnService implements Runnable {
 
     private ParcelFileDescriptor establishVPN() {
         Builder builder = new Builder();
-        builder.setMtu(MUTE_SIZE);
-        selectPackage = sp.getString(DEFAULT_PACKAGE_ID, null);
+        builder.setMtu(MUTE_SIZE);// maximum transmission unit
+        String selectPackage = sp.getString(DEFAULT_PACKAGE_ID, null);
         DebugLog.i("setMtu: %d\n", ProxyConfig.Instance.getMTU());
 
         ProxyConfig.IPAddress ipAddress = ProxyConfig.Instance.getDefaultLocalIP();
@@ -322,7 +300,6 @@ public class FirewallVpnService extends VpnService implements Runnable {
         DebugLog.i("addAddress: %s/%d\n", ipAddress.Address, ipAddress.PrefixLength);
 
         builder.addRoute(VPN_ROUTE, 0);
-
 
         builder.addDnsServer(GOOGLE_DNS_FIRST);
         builder.addDnsServer(CHINA_DNS_FIRST);
@@ -342,9 +319,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
         }
 
         builder.setSession(getString(R.string.app_name));
-        ParcelFileDescriptor pfdDescriptor = builder.establish();
-        //  notifyStatus(new VPNEvent(VPNEvent.Status.ESTABLISHED));
-        return pfdDescriptor;
+        return builder.establish();
     }
 
     @Override
@@ -370,13 +345,6 @@ public class FirewallVpnService extends VpnService implements Runnable {
             while (IsRunning) {
                 runVPN();
             }
-
-
-        } catch (InterruptedException e) {
-            if (AppDebug.IS_DEBUG) {
-                e.printStackTrace();
-            }
-            DebugLog.e("VpnService run catch an exception %s.\n", e);
         } catch (Exception e) {
             if (AppDebug.IS_DEBUG) {
                 e.printStackTrace();
@@ -395,10 +363,8 @@ public class FirewallVpnService extends VpnService implements Runnable {
                 mVPNInterface.close();
                 mVPNInterface = null;
             }
-        } catch (Exception e) {
-            //ignore
+        } catch (Exception ignore) {
         }
-        // notifyStatus(new VPNEvent(VPNEvent.Status.UNESTABLISHED));
         this.mVPNOutputStream = null;
     }
 
@@ -425,16 +391,11 @@ public class FirewallVpnService extends VpnService implements Runnable {
                     PortHostService.stopParse(getApplicationContext());
                 }
             });
-
-
             stopSelf();
             setVpnRunningStatus(false);
-        } catch (Exception e) {
-
+        } catch (Exception ignore) {
         }
-
     }
-
 
     public boolean vpnRunningStatus() {
         return IsRunning;
