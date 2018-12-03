@@ -17,12 +17,12 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.minhui.vpn.VPNConstants;
 import com.minhui.vpn.nat.NatSession;
-import com.minhui.vpn.utils.ACache;
 import com.minhui.vpn.processparse.AppInfo;
+import com.minhui.vpn.utils.ACache;
 import com.minhui.vpn.utils.ThreadProxy;
 import com.minhui.vpn.utils.TimeFormatUtil;
-import com.minhui.vpn.VPNConstants;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -86,7 +86,7 @@ public class ConnectionListActivity extends Activity {
                     }
                     baseNetSessions.add(netConnection);
                 }
-                Collections.sort(baseNetSessions, new NatSession.NatSesionComparator());
+                Collections.sort(baseNetSessions, new NatSession.NatSessionComparator());
 
                 refreshView();
 
@@ -194,13 +194,13 @@ public class ConnectionListActivity extends Activity {
 
             public ConnectionHolder(View view) {
                 super(view);
-                icon = (ImageView) view.findViewById(R.id.select_icon);
-                refreshTime = (TextView) view.findViewById(R.id.refresh_time);
-                size = (TextView) view.findViewById(R.id.net_size);
-                isSSL = (TextView) view.findViewById(R.id.is_ssl);
-                processName = (TextView) view.findViewById(R.id.app_name);
-                netState = (TextView) view.findViewById(R.id.net_state);
-                hostName = (TextView) view.findViewById(R.id.url);
+                icon = view.findViewById(R.id.select_icon);
+                refreshTime = view.findViewById(R.id.refresh_time);
+                size = view.findViewById(R.id.net_size);
+                isSSL = view.findViewById(R.id.is_ssl);
+                processName = view.findViewById(R.id.app_name);
+                netState = view.findViewById(R.id.net_state);
+                hostName = view.findViewById(R.id.url);
             }
         }
     }

@@ -125,7 +125,7 @@ public class NatSession implements Serializable {
         return vpnStartTime;
     }
 
-    public static class NatSesionComparator implements java.util.Comparator<NatSession> {
+    public static class NatSessionComparator implements java.util.Comparator<NatSession> {
 
         @Override
         public int compare(NatSession o1, NatSession o2) {

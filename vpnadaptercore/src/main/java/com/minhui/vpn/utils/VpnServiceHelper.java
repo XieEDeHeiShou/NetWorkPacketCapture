@@ -5,13 +5,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 
-
 import com.minhui.vpn.VPNConstants;
 import com.minhui.vpn.nat.NatSession;
 import com.minhui.vpn.processparse.PortHostService;
 import com.minhui.vpn.service.FirewallVpnService;
-import com.minhui.vpn.tcpip.IPHeader;
-import com.minhui.vpn.tcpip.UDPHeader;
 
 import java.io.File;
 import java.net.DatagramSocket;
@@ -24,15 +21,15 @@ import java.util.List;
  * Created by zengzheying on 16/1/12.
  */
 public class VpnServiceHelper {
-    static Context context;
     public static final int START_VPN_SERVICE_REQUEST_CODE = 2015;
+    static Context context;
     private static FirewallVpnService sVpnService;
     private static SharedPreferences sp;
 
     public static void onVpnServiceCreated(FirewallVpnService vpnService) {
         sVpnService = vpnService;
-        if(context==null){
-            context=vpnService.getApplicationContext();
+        if (context == null) {
+            context = vpnService.getApplicationContext();
         }
     }
 
@@ -90,16 +87,17 @@ public class VpnServiceHelper {
             sVpnService.setVpnRunningStatus(stopStatus);
         }
     }
+
     public static List<NatSession> getAllSession() {
         if (FirewallVpnService.lastVpnStartTimeFormat == null) {
             return null;
         }
         try {
-            File file = new File(VPNConstants.CONFIG_DIR +FirewallVpnService. lastVpnStartTimeFormat);
+            File file = new File(VPNConstants.CONFIG_DIR + FirewallVpnService.lastVpnStartTimeFormat);
             ACache aCache = ACache.get(file);
             String[] list = file.list();
             ArrayList<NatSession> baseNetSessions = new ArrayList<>();
-            if(list!=null){
+            if (list != null) {
 
                 for (String fileName : list) {
                     NatSession netConnection = (NatSession) aCache.getAsObject(fileName);
@@ -114,13 +112,14 @@ public class VpnServiceHelper {
                     baseNetSessions.addAll(aliveConnInfo);
                 }
             }
-            Collections.sort(baseNetSessions, new NatSession.NatSesionComparator());
+            Collections.sort(baseNetSessions, new NatSession.NatSessionComparator());
             return baseNetSessions;
-        }catch (Exception e){
+        } catch (Exception e) {
             return null;
         }
 
     }
+
     public static void startVpnService(Context context) {
         if (context == null) {
             return;
