@@ -1,6 +1,8 @@
 package com.minhui.vpn.nat;
 
-import com.minhui.vpn.processparse.PortHostService;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
 import com.minhui.vpn.utils.CommonMethods;
 
 import java.util.ArrayList;
@@ -11,19 +13,19 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Created by zengzheying on 15/12/29.
  * NAT管理对象
+ *
+ * @author zengzheying on 15/12/29.
  */
 public class NatSessionManager {
     /**
      * 会话保存的最大个数
      */
+    private static final int MAX_SESSION_COUNT = 64;
 
-    static final int MAX_SESSION_COUNT = 64;
     /**
-     * 会话保存时间
+     * 会话保存时间(second)
      */
-
     private static final long SESSION_TIME_OUT_NS = 60 * 1000L;
     private static final ConcurrentHashMap<Short, NatSession> sessions = new ConcurrentHashMap<>();
 
@@ -33,6 +35,7 @@ public class NatSessionManager {
      * @param portKey 本地端口
      * @return 会话信息
      */
+    @Nullable
     public static NatSession getSession(short portKey) {
         return sessions.get(portKey);
     }
@@ -49,7 +52,7 @@ public class NatSessionManager {
     /**
      * 清除过期的会话
      */
-    static void clearExpiredSessions() {
+    private static void clearExpiredSessions() {
         long now = System.currentTimeMillis();
         Set<Map.Entry<Short, NatSession>> entries = sessions.entrySet();
         Iterator<Map.Entry<Short, NatSession>> iterator = entries.iterator();
@@ -65,12 +68,12 @@ public class NatSessionManager {
         sessions.clear();
     }
 
+    @NonNull
     public static List<NatSession> getAllSession() {
+        // sessions.values()?
         ArrayList<NatSession> natSessions = new ArrayList<>();
         Set<Map.Entry<Short, NatSession>> entries = sessions.entrySet();
-        Iterator<Map.Entry<Short, NatSession>> iterator = entries.iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<Short, NatSession> next = iterator.next();
+        for (Map.Entry<Short, NatSession> next : entries) {
             natSessions.add(next.getValue());
         }
         return natSessions;
@@ -84,6 +87,7 @@ public class NatSessionManager {
      * @param remotePort 远程端口
      * @return NatSession对象
      */
+    @NonNull
     public static NatSession createSession(short portKey, int remoteIP, short remotePort, String type) {
         if (sessions.size() > MAX_SESSION_COUNT) {
             clearExpiredSessions(); //清除过期的会话
@@ -96,15 +100,12 @@ public class NatSessionManager {
         session.remotePort = remotePort;
         session.localPort = portKey;
 
-
         if (session.remoteHost == null) {
             session.remoteHost = CommonMethods.ipIntToString(remoteIP);
         }
         session.type = type;
         session.refreshIpAndPort();
         sessions.put(portKey, session);
-
-
         return session;
     }
 
