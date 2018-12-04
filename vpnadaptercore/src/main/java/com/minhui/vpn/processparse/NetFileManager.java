@@ -12,6 +12,12 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 通过读取 /proc/net 目录下的一系列文件, 将 source port 与 uid 进行映射
+ *
+ * @see <a href="http://lkml.iu.edu/hypermail/linux/kernel/0409.1/2166.html">/proc/net/tcp documentation</a>
+ * @see <a href="http://www.tldp.org/LDP/Linux-Filesystem-Hierarchy/html/proc.html">Linux-Filesystem-Hierarchy proc</a>
+ */
 public class NetFileManager {
     private final static int TYPE_TCP = 0;
     private final static int TYPE_TCP6 = 1;

@@ -23,7 +23,7 @@ import java.util.Collection;
 public class PortHostService extends Service {
     private static final String TAG = "PortHostService";
     private static PortHostService instance;
-    private boolean isRefresh = false;
+    private boolean refreshing = false;
 
     @Nullable
     public static PortHostService getInstance() {
@@ -72,10 +72,16 @@ public class PortHostService extends Service {
         refreshSessionInfo(allSession);
     }
 
+    /**
+     * 更新 Nat 会话池, 找到并更新没有 appInfo 的会话
+     *
+     * @param netConnections 待更新的 Nat 会话池
+     */
     private void refreshSessionInfo(@NonNull Collection<NatSession> netConnections) {
-        if (isRefresh) {
+        if (refreshing) {
             return;
         }
+        //region 如果任意一个会话的应用信息(appInfo)为空, 则需要刷新
         boolean needRefresh = false;
         for (NatSession connection : netConnections) {
             if (connection.appInfo == null) {
@@ -86,17 +92,18 @@ public class PortHostService extends Service {
         if (!needRefresh) {
             return;
         }
-        isRefresh = true;
+        //endregion
+        refreshing = true;
         try {
-            NetFileManager.getInstance().refresh();
+            NetFileManager.getInstance().refresh();// 刷新 source port 与 uid 的对应关系
 
             for (NatSession connection : netConnections) {
                 if (connection.appInfo == null) {
                     int searchPort = connection.localPort & 0XFFFF;
                     Integer uid = NetFileManager.getInstance().getUid(searchPort);
-
-                    if (uid != null) {
+                    if (uid == null) {
                         VPNLog.d(TAG, "can not find uid");
+                    } else {
                         connection.appInfo = AppInfo.createFromUid(VpnServiceHelper.getContext(), uid);
                     }
                 }
@@ -104,6 +111,6 @@ public class PortHostService extends Service {
         } catch (Exception e) {
             VPNLog.d(TAG, "failed to refreshSessionInfo " + e.getMessage());
         }
-        isRefresh = false;
+        refreshing = false;
     }
 }

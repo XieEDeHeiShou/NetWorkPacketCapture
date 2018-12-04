@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
+import android.support.annotation.NonNull;
 
 import com.minhui.vpn.Packet;
 import com.minhui.vpn.ProxyConfig;
@@ -152,7 +153,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
         disconnectVPN();
     }
 
-    boolean onIPPacketReceived(IPHeader ipHeader, int size) throws IOException {
+    boolean onIPPacketReceived(@NonNull IPHeader ipHeader, int size) throws IOException {
         boolean hasWrite = false;
         switch (ipHeader.getProtocol()) {
             case IPHeader.TCP:
@@ -197,7 +198,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
         udpServer.processUDPPacket(packet, portKey);
     }
 
-    private boolean onTcpPacketReceived(IPHeader ipHeader, int size) throws IOException {
+    private boolean onTcpPacketReceived(@NonNull IPHeader ipHeader, int size) throws IOException {
         TCPHeader tcpHeader = mTCPHeader;
         //矫正TCPHeader里的偏移量，使它指向真正的TCP数据地址
         tcpHeader.mOffset = ipHeader.getHeaderLength();
@@ -219,12 +220,14 @@ public class FirewallVpnService extends VpnService implements Runnable {
             VPNLog.d(TAG, "process  tcp packet to net ");
             //添加端口映射
             short portKey = tcpHeader.getSourcePort();
+            // 通过端口号获取 Nat 会话, Nat: 网络地址转换 https://en.wikipedia.org/wiki/Network_address_translation
             NatSession session = NatSessionManager.getSession(portKey);
-            if (session == null || session.remoteIP != ipHeader.getDestinationIP() || session.remotePort
-                    != tcpHeader.getDestinationPort()) {
+            if (session == null || session.remoteIP != ipHeader.getDestinationIP() ||
+                    session.remotePort != tcpHeader.getDestinationPort()) {
+                // 暂无会话, 或会话目的地不一致, 则新建会话
                 session = NatSessionManager.createSession(portKey, ipHeader.getDestinationIP(), tcpHeader
                         .getDestinationPort(), NatSession.TCP);
-                session.vpnStartTime = vpnStartTime;
+                session.vpnStartTime = vpnStartTime;// 记录该会话源自于哪一次 vpn 服务, 用于抓包记录
                 ThreadProxy.getInstance().execute(new Runnable() {
                     @Override
                     public void run() {
