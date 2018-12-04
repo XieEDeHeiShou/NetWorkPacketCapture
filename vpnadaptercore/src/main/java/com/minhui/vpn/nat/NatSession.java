@@ -1,19 +1,22 @@
 package com.minhui.vpn.nat;
 
 
+import android.support.annotation.NonNull;
+
 import com.minhui.vpn.processparse.AppInfo;
 import com.minhui.vpn.utils.CommonMethods;
 
 import java.io.Serializable;
+import java.util.Locale;
 
 /**
- * Created by zengzheying on 15/12/29.
+ * @author zengzheying on 15/12/29.
+ * @see <a href="https://en.wikipedia.org/wiki/Network_address_translation">wiki: Network address translation</a>
  */
 public class NatSession implements Serializable {
     public static final String TCP = "TCP";
     public static final String UDP = "UPD";
     public String type;
-    public String ipAndPort;
     public int remoteIP;
     public short remotePort;
     public String remoteHost;
@@ -28,15 +31,16 @@ public class NatSession implements Serializable {
     public String pathUrl;
     public String method;
     public AppInfo appInfo;
-    public long connectionStartTime = System.currentTimeMillis();
     public long vpnStartTime;
     public boolean isHttp;
+    private long connectionStartTime = System.currentTimeMillis();
+    private String ipAndPort;
 
-
+    @NonNull
     @Override
     public String toString() {
-        return String.format("%s/%s:%d packet: %d", remoteHost, CommonMethods.ipIntToString(remoteIP),
-                remotePort & 0xFFFF, packetSent);
+        return String.format(Locale.getDefault(), "%s/%s:%d packet: %d", remoteHost,
+                CommonMethods.ipIntToString(remoteIP), remotePort & 0xFFFF, packetSent);
     }
 
     public String getUniqueName() {
@@ -44,7 +48,7 @@ public class NatSession implements Serializable {
         return String.valueOf(uinID.hashCode());
     }
 
-    public void refreshIpAndPort() {
+    void refreshIpAndPort() {
         int remoteIPStr1 = (remoteIP & 0XFF000000) >> 24 & 0XFF;
         int remoteIPStr2 = (remoteIP & 0X00FF0000) >> 16;
         int remoteIPStr3 = (remoteIP & 0X0000FF00) >> 8;
