@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.View;
@@ -12,11 +13,11 @@ import android.widget.AdapterView;
 import android.widget.ListView;
 
 import com.minhui.vpn.ProxyConfig;
+import com.minhui.vpn.VPNConstants;
 import com.minhui.vpn.nat.NatSession;
 import com.minhui.vpn.processparse.AppInfo;
 import com.minhui.vpn.utils.ThreadProxy;
 import com.minhui.vpn.utils.TimeFormatUtil;
-import com.minhui.vpn.VPNConstants;
 import com.minhui.vpn.utils.VpnServiceHelper;
 
 import java.util.Iterator;
@@ -27,7 +28,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static com.minhui.vpn.VPNConstants.DEFAULT_PACKAGE_ID;
-import static com.minhui.vpn.VPNConstants.VPN_SP_NAME;
 
 
 /**
@@ -42,12 +42,12 @@ public class CaptureFragment extends BaseFragment {
     ProxyConfig.VpnStatusListener listener = new ProxyConfig.VpnStatusListener() {
 
         @Override
-        public void onVpnStart(Context context) {
+        public void onVpnStart(@NonNull Context context) {
             startTimer();
         }
 
         @Override
-        public void onVpnEnd(Context context) {
+        public void onVpnEnd(@NonNull Context context) {
             cancelTimer();
         }
     };
@@ -84,7 +84,7 @@ public class CaptureFragment extends BaseFragment {
 
 
         handler = new Handler();
-        channelList = (ListView) view.findViewById(R.id.channel_list);
+        channelList = view.findViewById(R.id.channel_list);
 
         channelList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override

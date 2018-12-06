@@ -24,6 +24,7 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
@@ -62,12 +63,12 @@ public class VPNCaptureActivity extends FragmentActivity {
     private ProxyConfig.VpnStatusListener vpnStatusListener = new ProxyConfig.VpnStatusListener() {
 
         @Override
-        public void onVpnStart(Context context) {
+        public void onVpnStart(@NonNull Context context) {
             handler.post(() -> vpnButton.setImageResource(R.mipmap.ic_stop));
         }
 
         @Override
-        public void onVpnEnd(Context context) {
+        public void onVpnEnd(@NonNull Context context) {
             handler.post(() -> vpnButton.setImageResource(R.mipmap.ic_start));
         }
     };
