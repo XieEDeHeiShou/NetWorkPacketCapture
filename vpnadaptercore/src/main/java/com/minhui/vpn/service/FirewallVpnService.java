@@ -232,7 +232,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
 
     private boolean onTcpPacketReceived(@NonNull IPHeader ipHeader, int size) throws IOException {
         if (DEBUG_TCP_IN) {
-            FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("sample/tcp"), "in-" + System.currentTimeMillis() + ".bin"));
+            FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("packet/tcp"), "in-" + System.currentTimeMillis() + ".bin"));
             debugOutput.write(ipHeader.mData, 0, size);
             debugOutput.close();
         }
@@ -249,7 +249,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
 
                 CommonMethods.ComputeTCPChecksum(ipHeader, tcpHeader);
                 if (DEBUG_TCP_OUT) {
-                    FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("sample/tcp"), "out-" + System.currentTimeMillis() + ".bin"));
+                    FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("packet/tcp"), "out-" + System.currentTimeMillis() + ".bin"));
                     debugOutput.write(ipHeader.mData, 0, size);
                     debugOutput.close();
                 }
