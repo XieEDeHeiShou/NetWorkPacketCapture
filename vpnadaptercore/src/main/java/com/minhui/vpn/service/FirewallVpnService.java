@@ -278,7 +278,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
                     && session.remoteHost == null
                     && session.requestUrl == null) {
                 int dataOffset = tcpHeader.mOffset + tcpHeader.getHeaderLength();
-                session.remoteHost = HttpRequestHeaderParser.getRemoteHost(tcpHeader.mData, dataOffset,
+                session.remoteHost = HttpRequestHeaderParser.extractRemoteHost(tcpHeader.mData, dataOffset,
                         tcpDataSize);
                 session.requestUrl = "http://" + session.remoteHost + "/" + session.pathUrl;
             }

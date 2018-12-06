@@ -33,11 +33,11 @@ public class HttpRequestHeaderParser {
                 case 'T':
                     //CONNECT
                 case 'C':
-                    getHttpHostAndRequestUrl(session, buffer, offset, count);
+                    fillHttpHostAndRequestUrl(session, buffer, offset, count);
                     break;
                 //SSL
                 case 0x16:// https://en.wikipedia.org/wiki/Synchronous_Idle
-                    session.remoteHost = getSNI(session, buffer, offset, count);
+                    session.remoteHost = extractSNI(session, buffer, offset, count);
                     session.isHttpsSession = true;
                     break;
                 default:
@@ -51,12 +51,12 @@ public class HttpRequestHeaderParser {
         }
     }
 
-    private static void getHttpHostAndRequestUrl(@NonNull NatSession session, @NonNull byte[] buffer, int offset, int count) {
+    private static void fillHttpHostAndRequestUrl(@NonNull NatSession session, @NonNull byte[] buffer, int offset, int count) {
         session.isHttp = true;
         session.isHttpsSession = false;
         String headerString = new String(buffer, offset, count);
         String[] headerLines = headerString.split("\\r\\n");
-        String host = getHttpHost(headerLines);
+        String host = extractHost(headerLines);
         if (!TextUtils.isEmpty(host)) {
             session.remoteHost = host;
         }
@@ -64,14 +64,14 @@ public class HttpRequestHeaderParser {
     }
 
     @Nullable
-    public static String getRemoteHost(@NonNull byte[] buffer, int offset, int count) {
+    public static String extractRemoteHost(@NonNull byte[] buffer, int offset, int count) {
         String headerString = new String(buffer, offset, count);
         String[] headerLines = headerString.split("\\r\\n");
-        return getHttpHost(headerLines);
+        return extractHost(headerLines);
     }
 
     @Nullable
-    private static String getHttpHost(@NonNull String[] headerLines) {
+    private static String extractHost(@NonNull String[] headerLines) {
         for (int i = 1; i < headerLines.length; i++) {
             String[] nameValueStrings = headerLines[i].split(":");
             if (nameValueStrings.length == 2 || nameValueStrings.length == 3) {
@@ -106,7 +106,7 @@ public class HttpRequestHeaderParser {
     }
 
     @Nullable
-    private static String getSNI(@NonNull NatSession session, @NonNull byte[] buffer, int offset, int count) {
+    private static String extractSNI(@NonNull NatSession session, @NonNull byte[] buffer, int offset, int count) {
         // https://en.wikipedia.org/wiki/Server_Name_Indication
         int limit = offset + count;
         //TLS Client Hello
