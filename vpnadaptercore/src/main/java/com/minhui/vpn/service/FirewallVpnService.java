@@ -30,7 +30,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -68,7 +67,9 @@ public class FirewallVpnService extends VpnService implements Runnable {
     private static final String HK_DNS_SECOND = "205.252.144.228";
     private static final String CHINA_DNS_FIRST = "114.114.114.114";
     private static final String TAG = "FirewallVpnService";
-    private static final boolean DEBUG_TCP_IN = true;
+    private static final boolean DEBUG_TCP_IN = false;
+    private static final boolean DEBUG_TCP_OUT = false;
+    private static final boolean DEBUG_UDP_IN = false;
     private static final boolean DEBUG_UDP_OUT = false;
     public static long vpnStartTime;
     public static String lastVpnStartTimeFormat = null;
@@ -108,8 +109,17 @@ public class FirewallVpnService extends VpnService implements Runnable {
         setVpnRunningStatus(true);
         super.onCreate();
 
-        if (DEBUG_TCP_IN || DEBUG_UDP_OUT) {
-            File sample = getExternalFilesDir("sample");
+        if (DEBUG_TCP_IN || DEBUG_TCP_OUT) {
+            File sample = getExternalFilesDir("packet/tcp");
+            if (sample != null) {
+                if (!sample.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    sample.mkdirs();
+                }
+            }
+        }
+        if (DEBUG_UDP_IN || DEBUG_UDP_OUT) {
+            File sample = getExternalFilesDir("packet/udp");
             if (sample != null) {
                 if (!sample.exists()) {
                     //noinspection ResultOfMethodCallIgnored
@@ -141,16 +151,16 @@ public class FirewallVpnService extends VpnService implements Runnable {
         mVPNOutputStream = new FileOutputStream(mVPNInterface.getFileDescriptor());
         FileInputStream in = new FileInputStream(mVPNInterface.getFileDescriptor());
         while (size != -1 && IsRunning) {
-            boolean hasWrite = false;
+            boolean hasTcpOutput = false;
             size = in.read(mPacket);
             if (size > 0) {
                 if (mTcpProxyServer.Stopped) {
                     in.close();
                     throw new Exception("LocalServer stopped.");
                 }
-                hasWrite = onIPPacketReceived(mIPHeader, size);
+                hasTcpOutput = onIPPacketReceived(mIPHeader, size);
             }
-            if (!hasWrite) {
+            if (!hasTcpOutput) {
                 Packet packet = udpQueue.poll();
                 if (packet != null) {
                     ByteBuffer bufferFromNetwork = packet.backingBuffer;
@@ -159,7 +169,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
                     mVPNOutputStream.write(array);
 
                     if (DEBUG_UDP_OUT) {
-                        FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("sample"), "out-" + System.currentTimeMillis() + ".bin"));
+                        FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("packet/udp"), "out-" + System.currentTimeMillis() + ".bin"));
                         debugOutput.write(array);
                         debugOutput.close();
                     }
@@ -171,22 +181,26 @@ public class FirewallVpnService extends VpnService implements Runnable {
         disconnectVPN();
     }
 
-    boolean onIPPacketReceived(@NonNull IPHeader ipHeader, int size) throws IOException {
-        boolean hasWrite = false;
+    /**
+     * @return has tcp output
+     */
+    private boolean onIPPacketReceived(@NonNull IPHeader ipHeader, int size) throws IOException {
         switch (ipHeader.getProtocol()) {
             case IPHeader.TCP:
-                hasWrite = onTcpPacketReceived(ipHeader, size);
-                break;
+                return onTcpPacketReceived(ipHeader, size);
             case IPHeader.UDP:
                 onUdpPacketReceived(ipHeader, size);
-                break;
             default:
-                break;
+                return false;
         }
-        return hasWrite;
     }
 
-    private void onUdpPacketReceived(@NonNull IPHeader ipHeader, int size) throws UnknownHostException {
+    private void onUdpPacketReceived(@NonNull IPHeader ipHeader, int size) throws IOException {
+        if (DEBUG_UDP_IN) {
+            FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("sample/udp"), "in-" + System.currentTimeMillis() + ".bin"));
+            debugOutput.write(ipHeader.mData, 0, size);
+            debugOutput.close();
+        }
         TCPHeader tcpHeader = mTCPHeader;
         short portKey = tcpHeader.getSourcePort();
 
@@ -217,6 +231,11 @@ public class FirewallVpnService extends VpnService implements Runnable {
     }
 
     private boolean onTcpPacketReceived(@NonNull IPHeader ipHeader, int size) throws IOException {
+        if (DEBUG_TCP_IN) {
+            FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("sample/tcp"), "in-" + System.currentTimeMillis() + ".bin"));
+            debugOutput.write(ipHeader.mData, 0, size);
+            debugOutput.close();
+        }
         TCPHeader tcpHeader = mTCPHeader;
         //矫正TCPHeader里的偏移量，使它指向真正的TCP数据地址
         tcpHeader.mOffset = ipHeader.getHeaderLength();
@@ -229,6 +248,11 @@ public class FirewallVpnService extends VpnService implements Runnable {
                 ipHeader.setDestinationIP(LOCAL_IP);
 
                 CommonMethods.ComputeTCPChecksum(ipHeader, tcpHeader);
+                if (DEBUG_TCP_OUT) {
+                    FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("sample/tcp"), "out-" + System.currentTimeMillis() + ".bin"));
+                    debugOutput.write(ipHeader.mData, 0, size);
+                    debugOutput.close();
+                }
                 mVPNOutputStream.write(ipHeader.mData, ipHeader.mOffset, size);
             } else {
                 DebugLog.i("NoSession: %s %s\n", ipHeader.toString(), tcpHeader.toString());
@@ -282,11 +306,6 @@ public class FirewallVpnService extends VpnService implements Runnable {
                         tcpDataSize);
                 session.requestUrl = "http://" + session.remoteHost + "/" + session.pathUrl;
             }
-            if (DEBUG_TCP_IN) {
-                FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("sample"), "in-tcp-" + System.currentTimeMillis() + ".bin"));
-                debugOutput.write(mPacket, 0, size);
-                debugOutput.close();
-            }
 
             //转发给本地TCP服务器
             ipHeader.setSourceIP(ipHeader.getDestinationIP());
@@ -294,6 +313,12 @@ public class FirewallVpnService extends VpnService implements Runnable {
             tcpHeader.setDestinationPort(mTcpProxyServer.port);
 
             CommonMethods.ComputeTCPChecksum(ipHeader, tcpHeader);
+
+            if (DEBUG_TCP_OUT) {
+                FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("sample/tcp"), "out-" + System.currentTimeMillis() + ".bin"));
+                debugOutput.write(ipHeader.mData, 0, size);
+                debugOutput.close();
+            }
             mVPNOutputStream.write(ipHeader.mData, ipHeader.mOffset, size);
             //注意顺序
             session.bytesSent += tcpDataSize;
