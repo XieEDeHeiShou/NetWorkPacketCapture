@@ -1,7 +1,8 @@
 package com.minhui.vpn.http;
 
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
-
 
 import com.minhui.vpn.nat.NatSession;
 import com.minhui.vpn.utils.AppDebug;
@@ -9,14 +10,13 @@ import com.minhui.vpn.utils.CommonMethods;
 import com.minhui.vpn.utils.DebugLog;
 
 import java.util.Locale;
-import java.util.TreeSet;
 
 /**
  * Created by zengzheying on 15/12/30.
  */
 public class HttpRequestHeaderParser {
 
-    public static void parseHttpRequestHeader(NatSession session, byte[] buffer, int offset, int count) {
+    public static void parseHttpRequestHeader(@NonNull NatSession session, @NonNull byte[] buffer, int offset, int count) {
         try {
             switch (buffer[offset]) {
                 //GET
@@ -36,7 +36,7 @@ public class HttpRequestHeaderParser {
                     getHttpHostAndRequestUrl(session, buffer, offset, count);
                     break;
                 //SSL
-                case 0x16:
+                case 0x16:// https://en.wikipedia.org/wiki/Synchronous_Idle
                     session.remoteHost = getSNI(session, buffer, offset, count);
                     session.isHttpsSession = true;
                     break;
@@ -51,7 +51,7 @@ public class HttpRequestHeaderParser {
         }
     }
 
-    public static void getHttpHostAndRequestUrl(NatSession session, byte[] buffer, int offset, int count) {
+    private static void getHttpHostAndRequestUrl(@NonNull NatSession session, @NonNull byte[] buffer, int offset, int count) {
         session.isHttp = true;
         session.isHttpsSession = false;
         String headerString = new String(buffer, offset, count);
@@ -63,13 +63,15 @@ public class HttpRequestHeaderParser {
         paresRequestLine(session, headerLines[0]);
     }
 
-    public static String getRemoteHost(byte[] buffer, int offset, int count) {
+    @Nullable
+    public static String getRemoteHost(@NonNull byte[] buffer, int offset, int count) {
         String headerString = new String(buffer, offset, count);
         String[] headerLines = headerString.split("\\r\\n");
         return getHttpHost(headerLines);
     }
 
-    public static String getHttpHost(String[] headerLines) {
+    @Nullable
+    private static String getHttpHost(@NonNull String[] headerLines) {
         for (int i = 1; i < headerLines.length; i++) {
             String[] nameValueStrings = headerLines[i].split(":");
             if (nameValueStrings.length == 2 || nameValueStrings.length == 3) {
@@ -83,7 +85,7 @@ public class HttpRequestHeaderParser {
         return null;
     }
 
-    public static void paresRequestLine(NatSession session, String requestLine) {
+    private static void paresRequestLine(@NonNull NatSession session, @NonNull String requestLine) {
         String[] parts = requestLine.trim().split(" ");
         if (parts.length == 3) {
             session.method = parts[0];
@@ -99,12 +101,13 @@ public class HttpRequestHeaderParser {
                 } else {
                     session.requestUrl = "http://" + url;
                 }
-
             }
         }
     }
 
-    public static String getSNI(NatSession session, byte[] buffer, int offset, int count) {
+    @Nullable
+    private static String getSNI(@NonNull NatSession session, @NonNull byte[] buffer, int offset, int count) {
+        // https://en.wikipedia.org/wiki/Server_Name_Indication
         int limit = offset + count;
         //TLS Client Hello
         if (count > 43 && buffer[offset] == 0x16) {
