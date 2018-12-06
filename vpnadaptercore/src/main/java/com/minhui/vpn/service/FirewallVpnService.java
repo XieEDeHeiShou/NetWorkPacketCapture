@@ -26,6 +26,7 @@ import com.minhui.vpn.utils.ThreadProxy;
 import com.minhui.vpn.utils.TimeFormatUtil;
 import com.minhui.vpn.utils.VpnServiceHelper;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -67,6 +68,8 @@ public class FirewallVpnService extends VpnService implements Runnable {
     private static final String HK_DNS_SECOND = "205.252.144.228";
     private static final String CHINA_DNS_FIRST = "114.114.114.114";
     private static final String TAG = "FirewallVpnService";
+    private static final boolean DEBUG_TCP_IN = true;
+    private static final boolean DEBUG_UDP_OUT = false;
     public static long vpnStartTime;
     public static String lastVpnStartTimeFormat = null;
     private static int ID;
@@ -104,6 +107,16 @@ public class FirewallVpnService extends VpnService implements Runnable {
         mVPNThread.start();
         setVpnRunningStatus(true);
         super.onCreate();
+
+        if (DEBUG_TCP_IN || DEBUG_UDP_OUT) {
+            File sample = getExternalFilesDir("sample");
+            if (sample != null) {
+                if (!sample.exists()) {
+                    //noinspection ResultOfMethodCallIgnored
+                    sample.mkdirs();
+                }
+            }
+        }
     }
 
     //停止Vpn工作线程
@@ -136,15 +149,20 @@ public class FirewallVpnService extends VpnService implements Runnable {
                     throw new Exception("LocalServer stopped.");
                 }
                 hasWrite = onIPPacketReceived(mIPHeader, size);
-
             }
             if (!hasWrite) {
                 Packet packet = udpQueue.poll();
                 if (packet != null) {
                     ByteBuffer bufferFromNetwork = packet.backingBuffer;
                     bufferFromNetwork.flip();
-                    mVPNOutputStream.write(bufferFromNetwork.array());
+                    byte[] array = bufferFromNetwork.array();
+                    mVPNOutputStream.write(array);
 
+                    if (DEBUG_UDP_OUT) {
+                        FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("sample"), "out-" + System.currentTimeMillis() + ".bin"));
+                        debugOutput.write(array);
+                        debugOutput.close();
+                    }
                 }
             }
             Thread.sleep(10);
@@ -168,7 +186,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
         return hasWrite;
     }
 
-    private void onUdpPacketReceived(IPHeader ipHeader, int size) throws UnknownHostException {
+    private void onUdpPacketReceived(@NonNull IPHeader ipHeader, int size) throws UnknownHostException {
         TCPHeader tcpHeader = mTCPHeader;
         short portKey = tcpHeader.getSourcePort();
 
@@ -203,7 +221,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
         //矫正TCPHeader里的偏移量，使它指向真正的TCP数据地址
         tcpHeader.mOffset = ipHeader.getHeaderLength();
         if (tcpHeader.getSourcePort() == mTcpProxyServer.port) {
-            VPNLog.d(TAG, "process  tcp packet from net ");
+            VPNLog.d(TAG, "tcp packet from net ");
             NatSession session = NatSessionManager.getSession(tcpHeader.getDestinationPort());
             if (session != null) {
                 ipHeader.setSourceIP(ipHeader.getDestinationIP());
@@ -215,9 +233,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
             } else {
                 DebugLog.i("NoSession: %s %s\n", ipHeader.toString(), tcpHeader.toString());
             }
-
         } else {
-            VPNLog.d(TAG, "process  tcp packet to net ");
             //添加端口映射
             short portKey = tcpHeader.getSourcePort();
             // 通过端口号获取 Nat 会话, Nat: 网络地址转换 https://en.wikipedia.org/wiki/Network_address_translation
@@ -244,11 +260,13 @@ public class FirewallVpnService extends VpnService implements Runnable {
             int tcpDataSize = ipHeader.getDataLength() - tcpHeader.getHeaderLength();
             //丢弃tcp握手的第二个ACK报文。因为客户端发数据的时候也会带上ACK，这样可以在服务器Accept之前分析出HOST信息。
             if (session.packetSent == 2 && tcpDataSize == 0) {
+                VPNLog.d(TAG, "tcp packet to net without payload");
                 return false;
             }
+            VPNLog.d(TAG, "tcp packet to net with payload");
 
             //分析数据，找到host
-            if (session.bytesSent == 0 && tcpDataSize > 10) {
+            if (session.bytesSent == 0 && tcpDataSize > 10) {// magic 10
                 int dataOffset = tcpHeader.mOffset + tcpHeader.getHeaderLength();
                 HttpRequestHeaderParser.parseHttpRequestHeader(session, tcpHeader.mData, dataOffset,
                         tcpDataSize);
@@ -263,6 +281,11 @@ public class FirewallVpnService extends VpnService implements Runnable {
                 session.remoteHost = HttpRequestHeaderParser.getRemoteHost(tcpHeader.mData, dataOffset,
                         tcpDataSize);
                 session.requestUrl = "http://" + session.remoteHost + "/" + session.pathUrl;
+            }
+            if (DEBUG_TCP_IN) {
+                FileOutputStream debugOutput = new FileOutputStream(new File(getExternalFilesDir("sample"), "in-tcp-" + System.currentTimeMillis() + ".bin"));
+                debugOutput.write(mPacket, 0, size);
+                debugOutput.close();
             }
 
             //转发给本地TCP服务器
