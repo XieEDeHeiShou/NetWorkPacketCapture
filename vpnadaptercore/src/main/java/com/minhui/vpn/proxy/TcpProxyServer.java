@@ -28,23 +28,29 @@ import java.util.Set;
  */
 public class TcpProxyServer implements Runnable {
     private static final String TAG = "TcpProxyServer";
-    public boolean Stopped;
-    public short port;
-
+    private final short port;
+    private boolean stopped;
     private Selector mSelector;
     private ServerSocketChannel mServerSocketChannel;
 
-    public TcpProxyServer(int port) throws IOException {
+    public TcpProxyServer() throws IOException {
         mSelector = Selector.open();
-
         mServerSocketChannel = ServerSocketChannel.open();
         mServerSocketChannel.configureBlocking(false);
-        mServerSocketChannel.socket().bind(new InetSocketAddress(port));
+        mServerSocketChannel.socket().bind(new InetSocketAddress(0));// 0: random available port
         mServerSocketChannel.register(mSelector, SelectionKey.OP_ACCEPT);
         this.port = (short) mServerSocketChannel.socket().getLocalPort();
 
-        DebugLog.i("AsyncTcpServer listen on %s:%d success.\n", mServerSocketChannel.socket().getInetAddress()
+        DebugLog.i("TcpProxyServer listen on %s:%d success.\n", mServerSocketChannel.socket().getInetAddress()
                 .toString(), this.port & 0xFFFF);
+    }
+
+    public short getPort() {
+        return port;
+    }
+
+    public boolean isStopped() {
+        return stopped;
     }
 
     /**
@@ -55,7 +61,7 @@ public class TcpProxyServer implements Runnable {
     }
 
     public void stop() {
-        this.Stopped = true;
+        this.stopped = true;
         if (mSelector != null) {
             try {
                 mSelector.close();

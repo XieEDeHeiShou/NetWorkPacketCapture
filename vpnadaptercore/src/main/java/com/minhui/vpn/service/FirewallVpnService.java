@@ -154,7 +154,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
             boolean hasTcpOutput = false;
             size = in.read(mPacket);
             if (size > 0) {
-                if (mTcpProxyServer.Stopped) {
+                if (mTcpProxyServer.isStopped()) {
                     in.close();
                     throw new Exception("LocalServer stopped.");
                 }
@@ -239,7 +239,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
         TCPHeader tcpHeader = mTCPHeader;
         //矫正TCPHeader里的偏移量，使它指向真正的TCP数据地址
         tcpHeader.mOffset = ipHeader.getHeaderLength();
-        if (tcpHeader.getSourcePort() == mTcpProxyServer.port) {
+        if (tcpHeader.getSourcePort() == mTcpProxyServer.getPort()) {
             VPNLog.d(TAG, "tcp packet from net ");
             NatSession session = NatSessionManager.getSession(tcpHeader.getDestinationPort());
             if (session != null) {
@@ -310,7 +310,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
             //转发给本地TCP服务器
             ipHeader.setSourceIP(ipHeader.getDestinationIP());
             ipHeader.setDestinationIP(LOCAL_IP);
-            tcpHeader.setDestinationPort(mTcpProxyServer.port);
+            tcpHeader.setDestinationPort(mTcpProxyServer.getPort());
 
             CommonMethods.ComputeTCPChecksum(ipHeader, tcpHeader);
 
@@ -382,7 +382,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
             udpQueue = new ConcurrentLinkedQueue<>();
 
             //启动TCP代理服务
-            mTcpProxyServer = new TcpProxyServer(0);
+            mTcpProxyServer = new TcpProxyServer();
             mTcpProxyServer.start();
             udpServer = new UDPServer(this, udpQueue);
             udpServer.start();
