@@ -50,7 +50,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
     public static final String BROADCAST_VPN_STATE = "com.minhui.localvpn.VPN_STATE";
     @SuppressWarnings("unused")
     public static final String SELECT_PACKAGE_ID = "select_protect_package_id";
-    public static final int MUTE_SIZE = 2560;// maximum transmission unit: 2 * 1024
+    public static final int MUTE_SIZE = 2560;// maximum transmission unit: 超过该长度的内容将被分包
     @SuppressWarnings("unused")
     private static final String FACEBOOK_APP = "com.facebook.katana";
     @SuppressWarnings("unused")
@@ -343,7 +343,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
         Builder builder = new Builder();
         builder.setMtu(MUTE_SIZE);// maximum transmission unit
         String selectPackage = sp.getString(DEFAULT_PACKAGE_ID, null);
-        DebugLog.i("setMtu: %d\n", ProxyConfig.Instance.getMTU());
+        DebugLog.i("setMtu: %d\n", MUTE_SIZE);
 
         ProxyConfig.IPAddress ipAddress = ProxyConfig.Instance.getDefaultLocalIP();
         LOCAL_IP = CommonMethods.ipStringToInt(ipAddress.Address);
