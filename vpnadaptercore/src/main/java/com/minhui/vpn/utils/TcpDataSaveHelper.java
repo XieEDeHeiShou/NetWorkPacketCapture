@@ -1,34 +1,38 @@
 package com.minhui.vpn.utils;
 
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
 import com.minhui.vpn.VPNLog;
-import com.minhui.vpn.utils.ThreadProxy;
 
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 
 /**
  * @author minhui.zhu
- *         Created by minhui.zhu on 2018/5/7.
- *         Copyright © 2017年 Oceanwing. All rights reserved.
+ * Created by minhui.zhu on 2018/5/7.
+ * Copyright © 2017年 Oceanwing. All rights reserved.
  */
 
 public class TcpDataSaveHelper {
     private static final String TAG = "TcpDataSaveHelper";
-    private String dir;
+    private static final String REQUEST = "request";
+    private static final String RESPONSE = "response";
+    @NonNull
+    private final String dir;
     private SaveData lastSaveData;
     private File lastSaveFile;
-    int requestNum = 0;
-    int responseNum = 0;
-    public static final String REQUEST = "request";
-    public static final String RESPONSE = "response";
+    private int requestNum = 0;
+    private int responseNum = 0;
 
-    public TcpDataSaveHelper(String dir) {
+    public TcpDataSaveHelper(@NonNull String dir) {
         this.dir = dir;
     }
 
-    public void addData(final SaveData data) {
+    public void addData(@NonNull final SaveData data) {
         ThreadProxy.getInstance().execute(new Runnable() {
             @Override
             public void run() {
@@ -43,19 +47,18 @@ public class TcpDataSaveHelper {
 
     }
 
-    private void appendFileData(SaveData data) {
+    private void appendFileData(@NonNull SaveData data) {
         RandomAccessFile randomAccessFile;
         try {
             randomAccessFile = new RandomAccessFile(lastSaveFile.getAbsolutePath(), "rw");
             long length = randomAccessFile.length();
             randomAccessFile.seek(length);
             randomAccessFile.write(data.needParseData, data.offSet, data.playoffSize);
-        } catch (Exception e) {
-
+        } catch (IOException ignore) {
         }
     }
 
-    private void close(Closeable closeable) {
+    private void close(@Nullable Closeable closeable) {
         if (closeable != null) {
             try {
                 closeable.close();
@@ -65,7 +68,7 @@ public class TcpDataSaveHelper {
         }
     }
 
-    private void newFileAndSaveData(SaveData data) {
+    private void newFileAndSaveData(@NonNull SaveData data) {
         int saveNum;
         if (data.isRequest) {
             saveNum = requestNum;
@@ -76,6 +79,7 @@ public class TcpDataSaveHelper {
         }
         File file = new File(dir);
         if (!file.exists()) {
+            //noinspection ResultOfMethodCallIgnored
             file.mkdirs();
         }
         String childName = (data.isRequest ? REQUEST : RESPONSE) + saveNum;
@@ -94,14 +98,13 @@ public class TcpDataSaveHelper {
 
     }
 
-
     public static class SaveData {
         boolean isRequest;
         byte[] needParseData;
         int offSet;
         int playoffSize;
 
-        private SaveData(Builder builder) {
+        private SaveData(@NonNull Builder builder) {
             isRequest = builder.isRequest;
             needParseData = builder.needParseData;
             offSet = builder.offSet;
@@ -118,26 +121,31 @@ public class TcpDataSaveHelper {
             public Builder() {
             }
 
+            @NonNull
             public Builder isRequest(boolean val) {
                 isRequest = val;
                 return this;
             }
 
-            public Builder needParseData(byte[] val) {
+            @NonNull
+            public Builder needParseData(@NonNull byte[] val) {
                 needParseData = val;
                 return this;
             }
 
+            @NonNull
             public Builder offSet(int val) {
                 offSet = val;
                 return this;
             }
 
+            @NonNull
             public Builder length(int val) {
                 length = val;
                 return this;
             }
 
+            @NonNull
             public SaveData build() {
                 return new SaveData(this);
             }
