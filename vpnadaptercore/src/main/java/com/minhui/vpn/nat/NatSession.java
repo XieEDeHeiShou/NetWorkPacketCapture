@@ -26,12 +26,12 @@ public class NatSession implements Serializable {
     public long receivePacketNum;
     public long lastRefreshTime;
     public boolean isHttpsSession;
-    public String requestUrl;
     public String pathUrl;
     public String method;
     public AppInfo appInfo;
     public long vpnStartTime;
-    public boolean isHttp;
+    private String requestUrl;
+    private boolean isHttp;
     private int remoteIP;
     private long connectionStartTime = System.currentTimeMillis();
     private String ipAndPort;

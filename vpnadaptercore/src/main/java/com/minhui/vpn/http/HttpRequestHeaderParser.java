@@ -37,8 +37,8 @@ public class HttpRequestHeaderParser {
                     break;
                 //SSL
                 case 0x16:// https://en.wikipedia.org/wiki/Synchronous_Idle
-                    session.remoteHost = extractSNI(session, buffer, offset, count);
-                    session.isHttpsSession = true;
+                    session.setRemoteHost(extractSNI(session, buffer, offset, count));
+                    session.setHttpsSession(true);
                     break;
                 default:
                     break;
@@ -52,13 +52,13 @@ public class HttpRequestHeaderParser {
     }
 
     private static void fillHttpHostAndRequestUrl(@NonNull NatSession session, @NonNull byte[] buffer, int offset, int count) {
-        session.isHttp = true;
-        session.isHttpsSession = false;
+        session.setHttp(true);
+        session.setHttpsSession(false);
         String headerString = new String(buffer, offset, count);
         String[] headerLines = headerString.split("\\r\\n");
         String host = extractHost(headerLines);
         if (!TextUtils.isEmpty(host)) {
-            session.remoteHost = host;
+            session.setRemoteHost(host);
         }
         paresRequestLine(session, headerLines[0]);
     }
@@ -88,18 +88,18 @@ public class HttpRequestHeaderParser {
     private static void paresRequestLine(@NonNull NatSession session, @NonNull String requestLine) {
         String[] parts = requestLine.trim().split(" ");
         if (parts.length == 3) {
-            session.method = parts[0];
+            session.setMethod(parts[0]);
             String url = parts[1];
-            session.pathUrl = url;
+            session.setPathUrl(url);
             if (url.startsWith("/")) {
-                if (session.remoteHost != null) {
-                    session.requestUrl = "http://" + session.remoteHost + url;
+                if (session.getRemoteHost() != null) {
+                    session.setRequestUrl("http://" + session.getRemoteHost() + url);
                 }
             } else {
-                if (session.requestUrl.startsWith("http")) {
-                    session.requestUrl = url;
+                if (session.getRequestUrl().startsWith("http")) {
+                    session.setRequestUrl(url);
                 } else {
-                    session.requestUrl = "http://" + url;
+                    session.setRequestUrl("http://" + url);
                 }
             }
         }
