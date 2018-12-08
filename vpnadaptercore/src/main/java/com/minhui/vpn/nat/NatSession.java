@@ -17,7 +17,6 @@ public class NatSession implements Serializable {
     public static final String TCP = "TCP";
     public static final String UDP = "UPD";
     public String type;
-    public short remotePort;
     public String remoteHost;
     public short localPort;
     public int bytesSent;
@@ -30,6 +29,7 @@ public class NatSession implements Serializable {
     public String method;
     public AppInfo appInfo;
     public long vpnStartTime;
+    private short remotePort;
     private String requestUrl;
     private boolean isHttp;
     private int remoteIP;

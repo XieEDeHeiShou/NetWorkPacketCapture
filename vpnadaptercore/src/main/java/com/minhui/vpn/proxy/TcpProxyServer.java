@@ -139,7 +139,7 @@ public class TcpProxyServer implements Runnable {
         short portKey = (short) localChannel.socket().getPort();
         NatSession session = NatSessionManager.getSession(portKey);
         if (session != null) {
-            return new InetSocketAddress(localChannel.socket().getInetAddress(), session.remotePort & 0xFFFF);
+            return new InetSocketAddress(localChannel.socket().getInetAddress(), session.getRemotePort() & 0xFFFF);
         }
         return null;
     }
@@ -151,7 +151,7 @@ public class TcpProxyServer implements Runnable {
             localTunnel = new RawTcpTunnel(localChannel, mSelector);
             NatSession session = NatSessionManager.getSession((short) localChannel.socket().getPort());
             if (session != null) {
-                localTunnel.setIsHttpsRequest(session.isHttpsSession);
+                localTunnel.setIsHttpsRequest(session.isHttpsSession());
             }
 
             short portKey = (short) localChannel.socket().getPort();
