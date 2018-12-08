@@ -205,11 +205,11 @@ public class FirewallVpnService extends VpnService implements Runnable {
         short portKey = tcpHeader.getSourcePort();
 
         NatSession session = NatSessionManager.getSession(portKey);
-        if (session == null || session.remoteIP != ipHeader.getDestinationIP() || session.remotePort
-                != tcpHeader.getDestinationPort()) {
+        if (session == null || session.getRemoteIP() != ipHeader.getDestinationIP()
+                || session.getRemotePort() != tcpHeader.getDestinationPort()) {
             session = NatSessionManager.createSession(portKey, ipHeader.getDestinationIP(), tcpHeader
                     .getDestinationPort(), NatSession.UDP);
-            session.vpnStartTime = vpnStartTime;
+            session.setVpnStartTime(vpnStartTime);
             ThreadProxy.getInstance().execute(new Runnable() {
                 @Override
                 public void run() {
@@ -220,8 +220,8 @@ public class FirewallVpnService extends VpnService implements Runnable {
             });
         }
 
-        session.lastRefreshTime = System.currentTimeMillis();
-        session.packetSent++; //注意顺序
+        session.setLastRefreshTime(System.currentTimeMillis());
+        session.setPacketSent(session.getPacketSent() + 1); //注意顺序
 
         byte[] bytes = Arrays.copyOf(mPacket, mPacket.length);
         ByteBuffer byteBuffer = ByteBuffer.wrap(bytes, 0, size);
@@ -244,7 +244,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
             NatSession session = NatSessionManager.getSession(tcpHeader.getDestinationPort());
             if (session != null) {
                 ipHeader.setSourceIP(ipHeader.getDestinationIP());
-                tcpHeader.setSourcePort(session.remotePort);
+                tcpHeader.setSourcePort(session.getRemotePort());
                 ipHeader.setDestinationIP(LOCAL_IP);
 
                 CommonMethods.ComputeTCPChecksum(ipHeader, tcpHeader);
@@ -262,12 +262,12 @@ public class FirewallVpnService extends VpnService implements Runnable {
             short portKey = tcpHeader.getSourcePort();
             // 通过端口号获取 Nat 会话, Nat: 网络地址转换 https://en.wikipedia.org/wiki/Network_address_translation
             NatSession session = NatSessionManager.getSession(portKey);
-            if (session == null || session.remoteIP != ipHeader.getDestinationIP() ||
-                    session.remotePort != tcpHeader.getDestinationPort()) {
+            if (session == null || session.getRemoteIP() != ipHeader.getDestinationIP() ||
+                    session.getRemotePort() != tcpHeader.getDestinationPort()) {
                 // 暂无会话, 或会话目的地不一致, 则新建会话
                 session = NatSessionManager.createSession(portKey, ipHeader.getDestinationIP(), tcpHeader
                         .getDestinationPort(), NatSession.TCP);
-                session.vpnStartTime = vpnStartTime;// 记录该会话源自于哪一次 vpn 服务, 用于抓包记录
+                session.setVpnStartTime(vpnStartTime); // 记录该会话源自于哪一次 vpn 服务, 用于抓包记录
                 ThreadProxy.getInstance().execute(new Runnable() {
                     @Override
                     public void run() {
@@ -279,32 +279,32 @@ public class FirewallVpnService extends VpnService implements Runnable {
                 });
             }
 
-            session.lastRefreshTime = System.currentTimeMillis();
-            session.packetSent++; //注意顺序
+            session.setLastRefreshTime(System.currentTimeMillis());
+            session.setPacketSent(session.getPacketSent() + 1); //注意顺序
             int tcpDataSize = ipHeader.getDataLength() - tcpHeader.getHeaderLength();
             //丢弃tcp握手的第二个ACK报文。因为客户端发数据的时候也会带上ACK，这样可以在服务器Accept之前分析出HOST信息。
-            if (session.packetSent == 2 && tcpDataSize == 0) {
+            if (session.getPacketSent() == 2 && tcpDataSize == 0) {
                 VPNLog.d(TAG, "tcp packet to net without payload");
                 return false;
             }
             VPNLog.d(TAG, "tcp packet to net with payload");
 
             //分析数据，找到host
-            if (session.bytesSent == 0 && tcpDataSize > 10) {// magic 10
+            if (session.getBytesSent() == 0 && tcpDataSize > 10) {// magic 10
                 int dataOffset = tcpHeader.mOffset + tcpHeader.getHeaderLength();
                 HttpRequestHeaderParser.parseHttpRequestHeader(session, tcpHeader.mData, dataOffset,
                         tcpDataSize);
-                DebugLog.i("Host: %s\n", session.remoteHost);
-                DebugLog.i("Request: %s %s\n", session.method, session.requestUrl);
-            } else if (session.bytesSent > 0
-                    && !session.isHttpsSession
-                    && session.isHttp
-                    && session.remoteHost == null
-                    && session.requestUrl == null) {
+                DebugLog.i("Host: %s\n", session.getRemoteHost());
+                DebugLog.i("Request: %s %s\n", session.getMethod(), session.getRequestUrl());
+            } else if (session.getBytesSent() > 0
+                    && !session.isHttpsSession()
+                    && session.isHttp()
+                    && session.getRemoteHost() == null
+                    && session.getRequestUrl() == null) {
                 int dataOffset = tcpHeader.mOffset + tcpHeader.getHeaderLength();
-                session.remoteHost = HttpRequestHeaderParser.extractRemoteHost(tcpHeader.mData, dataOffset,
-                        tcpDataSize);
-                session.requestUrl = "http://" + session.remoteHost + "/" + session.pathUrl;
+                session.setRemoteHost(HttpRequestHeaderParser.extractRemoteHost(tcpHeader.mData, dataOffset,
+                        tcpDataSize));
+                session.setRequestUrl("http://" + session.remoteHost + "/" + session.pathUrl);
             }
 
             //转发给本地TCP服务器
@@ -321,7 +321,7 @@ public class FirewallVpnService extends VpnService implements Runnable {
             }
             mVPNOutputStream.write(ipHeader.mData, ipHeader.mOffset, size);
             //注意顺序
-            session.bytesSent += tcpDataSize;
+            session.setBytesSent(session.getBytesSent() + tcpDataSize);
         }
         return true;
     }

@@ -17,7 +17,6 @@ public class NatSession implements Serializable {
     public static final String TCP = "TCP";
     public static final String UDP = "UPD";
     public String type;
-    public int remoteIP;
     public short remotePort;
     public String remoteHost;
     public short localPort;
@@ -33,6 +32,7 @@ public class NatSession implements Serializable {
     public AppInfo appInfo;
     public long vpnStartTime;
     public boolean isHttp;
+    private int remoteIP;
     private long connectionStartTime = System.currentTimeMillis();
     private String ipAndPort;
 
@@ -61,40 +61,80 @@ public class NatSession implements Serializable {
         return type;
     }
 
+    public void setType(String type) {
+        this.type = type;
+    }
+
     public String getIpAndPort() {
         return ipAndPort;
+    }
+
+    public void setIpAndPort(String ipAndPort) {
+        this.ipAndPort = ipAndPort;
     }
 
     public int getRemoteIP() {
         return remoteIP;
     }
 
+    public void setRemoteIP(int remoteIP) {
+        this.remoteIP = remoteIP;
+    }
+
     public short getRemotePort() {
         return remotePort;
+    }
+
+    public void setRemotePort(short remotePort) {
+        this.remotePort = remotePort;
     }
 
     public String getRemoteHost() {
         return remoteHost;
     }
 
+    public void setRemoteHost(String remoteHost) {
+        this.remoteHost = remoteHost;
+    }
+
     public short getLocalPort() {
         return localPort;
+    }
+
+    public void setLocalPort(short localPort) {
+        this.localPort = localPort;
     }
 
     public int getBytesSent() {
         return bytesSent;
     }
 
+    public void setBytesSent(int bytesSent) {
+        this.bytesSent = bytesSent;
+    }
+
     public int getPacketSent() {
         return packetSent;
+    }
+
+    public void setPacketSent(int packetSent) {
+        this.packetSent = packetSent;
     }
 
     public long getReceiveByteNum() {
         return receiveByteNum;
     }
 
+    public void setReceiveByteNum(long receiveByteNum) {
+        this.receiveByteNum = receiveByteNum;
+    }
+
     public long getReceivePacketNum() {
         return receivePacketNum;
+    }
+
+    public void setReceivePacketNum(long receivePacketNum) {
+        this.receivePacketNum = receivePacketNum;
     }
 
     public long getRefreshTime() {
@@ -105,28 +145,72 @@ public class NatSession implements Serializable {
         return isHttpsSession;
     }
 
+    public void setHttpsSession(boolean httpsSession) {
+        isHttpsSession = httpsSession;
+    }
+
     public String getRequestUrl() {
         return requestUrl;
+    }
+
+    public void setRequestUrl(String requestUrl) {
+        this.requestUrl = requestUrl;
     }
 
     public String getPathUrl() {
         return pathUrl;
     }
 
+    public void setPathUrl(String pathUrl) {
+        this.pathUrl = pathUrl;
+    }
+
     public String getMethod() {
         return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
     }
 
     public AppInfo getAppInfo() {
         return appInfo;
     }
 
+    public void setAppInfo(AppInfo appInfo) {
+        this.appInfo = appInfo;
+    }
+
     public long getConnectionStartTime() {
         return connectionStartTime;
     }
 
+    public void setConnectionStartTime(long connectionStartTime) {
+        this.connectionStartTime = connectionStartTime;
+    }
+
     public long getVpnStartTime() {
         return vpnStartTime;
+    }
+
+    public void setVpnStartTime(long vpnStartTime) {
+        this.vpnStartTime = vpnStartTime;
+    }
+
+    public long getLastRefreshTime() {
+        return lastRefreshTime;
+    }
+
+    public void setLastRefreshTime(long lastRefreshTime) {
+        this.lastRefreshTime = lastRefreshTime;
+    }
+
+    public boolean isHttp() {
+        return isHttp;
+    }
+
+    public void setHttp(boolean http) {
+        isHttp = http;
     }
 
     public static class NatSessionComparator implements java.util.Comparator<NatSession> {

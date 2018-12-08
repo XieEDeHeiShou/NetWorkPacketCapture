@@ -87,16 +87,15 @@ public class NatSessionManager {
         }
 
         NatSession session = new NatSession();
-        // session.lastRefreshTime = System.currentTimeMillis();
-        session.lastRefreshTime = System.currentTimeMillis();
-        session.remoteIP = remoteIP;
-        session.remotePort = remotePort;
-        session.localPort = portKey;
+        session.setLastRefreshTime(System.currentTimeMillis());
+        session.setRemoteIP(remoteIP);
+        session.setRemotePort(remotePort);
+        session.setLocalPort(portKey);
 
-        if (session.remoteHost == null) {
-            session.remoteHost = CommonMethods.ipIntToString(remoteIP);
+        if (session.getRemoteHost() == null) {
+            session.setRemoteHost(CommonMethods.ipIntToString(remoteIP));
         }
-        session.type = type;
+        session.setType(type);
         session.refreshIpAndPort();
         sessions.put(portKey, session);
         return session;
